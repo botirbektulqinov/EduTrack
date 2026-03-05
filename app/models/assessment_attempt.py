@@ -1,77 +1,73 @@
 """
 EduTrack — Assessment Attempt Model
-Tracks each student's session taking an assessment.
+Tracks each student attempt with timing, scoring, and proctoring data.
 """
 
 import uuid
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import (
-    Column,
-    DateTime,
-    Float,
-    ForeignKey,
-    Integer,
-    String,
-    Text,
-)
-from sqlalchemy.dialects.postgresql import UUID, INET
-from sqlalchemy.orm import relationship
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy.dialects.postgresql import INET, UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
-
-ATTEMPT_STATUSES = [
-    "not_started",
-    "in_progress",
-    "submitted",
-    "terminated",
-    "grading",
-    "graded",
-]
+if TYPE_CHECKING:
+    from app.models.assessment import Assessment
+    from app.models.student_answer import StudentAnswer
+    from app.models.user import User
+    from app.models.violation import Violation
 
 
 class AssessmentAttempt(Base):
     __tablename__ = "assessment_attempts"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    assessment_id = Column(UUID(as_uuid=True), ForeignKey("assessments.id"), nullable=False)
-    student_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    assessment_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("assessments.id"))
+    student_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
 
-    status = Column(
-        String(20),
-        default="in_progress",
-        nullable=False,
-    )  # see ATTEMPT_STATUSES
+    # Status
+    status: Mapped[str] = mapped_column(String(30), default="not_started")
 
-    started_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-    submitted_at = Column(DateTime(timezone=True), nullable=True)
+    # Timing
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+    )
+    submitted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    time_limit_seconds: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    time_remaining_seconds: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
-    # Timer
-    time_limit_seconds = Column(Integer, nullable=True)  # actual limit incl. accommodations
-    time_remaining_seconds = Column(Integer, nullable=True)
+    # Scoring
+    score_raw: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    score_percent: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    grade: Mapped[Optional[str]] = mapped_column(String(5), nullable=True)
 
-    # Scores
-    score_raw = Column(Float, nullable=True)
-    score_percent = Column(Float, nullable=True)
-    grade = Column(String(10), nullable=True)
+    # Proctoring
+    violation_count: Mapped[int] = mapped_column(Integer, default=0)
+    termination_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
-    # Violations
-    violation_count = Column(Integer, default=0, nullable=False)
-    termination_reason = Column(String(100), nullable=True)
+    # Security
+    server_token: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), default=uuid.uuid4,
+    )
+    ip_address: Mapped[Optional[str]] = mapped_column(INET, nullable=True)
+    user_agent: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
-    # Session security
-    server_token = Column(UUID(as_uuid=True), unique=True, default=uuid.uuid4, nullable=False)
-    ip_address = Column(INET, nullable=True)
-    user_agent = Column(Text, nullable=True)
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+    )
 
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    # ── Relationships ──
+    assessment: Mapped["Assessment"] = relationship(back_populates="attempts")
+    student: Mapped["User"] = relationship(back_populates="assessment_attempts")
+    answers: Mapped[list["StudentAnswer"]] = relationship(
+        back_populates="attempt", cascade="all, delete-orphan",
+    )
+    violations: Mapped[list["Violation"]] = relationship(
+        back_populates="attempt", cascade="all, delete-orphan",
+    )
 
-    # Relationships
-    assessment = relationship("Assessment", back_populates="attempts")
-    student = relationship("User", back_populates="assessment_attempts", foreign_keys=[student_id])
-    answers = relationship("StudentAnswer", back_populates="attempt", cascade="all, delete-orphan")
-    violations = relationship("Violation", back_populates="attempt", cascade="all, delete-orphan")
-
-    def __repr__(self):
-        return f"<AssessmentAttempt status={self.status} score={self.score_percent}>"
+    def __repr__(self) -> str:
+        return f"<Attempt {self.id} status={self.status}>"

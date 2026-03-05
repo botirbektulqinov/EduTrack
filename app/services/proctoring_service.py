@@ -93,7 +93,7 @@ class ProctoringService:
             .where(Violation.attempt_id == attempt_id)
             .order_by(Violation.occurred_at)
         )
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     @staticmethod
     async def get_violations_for_assessment(
@@ -105,7 +105,7 @@ class ProctoringService:
             .where(Violation.assessment_id == assessment_id)
             .order_by(Violation.occurred_at.desc())
         )
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     @staticmethod
     async def get_violation_stats(db: AsyncSession, assessment_id: UUID) -> dict:

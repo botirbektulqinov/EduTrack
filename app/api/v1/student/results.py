@@ -27,12 +27,12 @@ async def my_results(
     student: User = Depends(get_student_user),
 ):
     """Get all my assessment results."""
-    count = (await db.execute(
+    count: int = (await db.execute(
         select(func.count(AssessmentAttempt.id)).where(
             AssessmentAttempt.student_id == student.id,
             AssessmentAttempt.status.in_(["submitted", "graded", "terminated"]),
         )
-    )).scalar()
+    )).scalar() or 0
 
     query = (
         select(AssessmentAttempt)

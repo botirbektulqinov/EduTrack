@@ -79,11 +79,11 @@ class UserService:
             query = query.where(search_filter)
             count_query = count_query.where(search_filter)
 
-        total = (await db.execute(count_query)).scalar()
+        total: int = (await db.execute(count_query)).scalar() or 0
         query = query.order_by(User.created_at.desc())
         query = query.offset((page - 1) * per_page).limit(per_page)
         result = await db.execute(query)
-        return result.scalars().all(), total
+        return list(result.scalars().all()), total
 
     @staticmethod
     async def update_user(db: AsyncSession, user: User, data: UserUpdate) -> User:

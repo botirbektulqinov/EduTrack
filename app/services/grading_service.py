@@ -63,7 +63,7 @@ class GradingService:
         # Update attempt scores
         attempt.score_raw = earned_points
         attempt.score_percent = (earned_points / total_points * 100) if total_points > 0 else 0
-        attempt.grade = self._compute_grade(attempt.score_percent)
+        attempt.grade = self._compute_grade(attempt.score_percent or 0)
 
         if needs_manual_review:
             attempt.status = "grading"
@@ -276,7 +276,7 @@ class GradingService:
         # Correct order from options
         correct_order = sorted(
             [opt for opt in question.options if opt.order_position is not None],
-            key=lambda o: o.order_position,
+            key=lambda o: o.order_position or 0,
         )
         correct_ids = [str(opt.id) for opt in correct_order]
         student_ids = [str(oid) for oid in answer.ordered_ids]

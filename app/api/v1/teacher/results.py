@@ -46,7 +46,7 @@ async def list_attempts(
     from sqlalchemy import func
     count = (await db.execute(
         select(func.count(AssessmentAttempt.id)).where(AssessmentAttempt.assessment_id == assessment_id)
-    )).scalar()
+    )).scalar() or 0
 
     query = (
         select(AssessmentAttempt)
@@ -120,7 +120,7 @@ async def manual_grade(
 
     attempt.score_raw = total_earned
     attempt.score_percent = (total_earned / assessment.total_points * 100) if assessment.total_points > 0 else 0
-    attempt.grade = GradingService._compute_grade(attempt.score_percent)
+    attempt.grade = GradingService._compute_grade(attempt.score_percent or 0)
     attempt.status = "graded"
 
     await db.flush()

@@ -3,6 +3,8 @@ EduTrack — Auth API Routes
 POST /auth/login, /auth/refresh, /auth/logout, /auth/me, etc.
 """
 
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -66,7 +68,12 @@ async def refresh_token(
         )
 
     user_id = payload.get("sub")
-    user = await UserService.get_user_by_id(db, user_id)
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "AUTH_TOKEN_EXPIRED", "message": "Invalid token payload."},
+        )
+    user = await UserService.get_user_by_id(db, UUID(user_id))
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

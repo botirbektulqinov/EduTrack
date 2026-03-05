@@ -90,11 +90,11 @@ class AssessmentService:
         query = select(Assessment).where(Assessment.teacher_id == teacher_id)
         count_query = select(func.count(Assessment.id)).where(Assessment.teacher_id == teacher_id)
 
-        total = (await db.execute(count_query)).scalar()
+        total: int = (await db.execute(count_query)).scalar() or 0
         query = query.order_by(Assessment.created_at.desc())
         query = query.offset((page - 1) * per_page).limit(per_page)
         result = await db.execute(query)
-        return result.scalars().all(), total
+        return list(result.scalars().all()), total
 
     @staticmethod
     async def update_assessment(db: AsyncSession, assessment: Assessment, data: AssessmentUpdate) -> Assessment:
@@ -173,12 +173,12 @@ class AssessmentService:
                 return False, "STUDENT_NOT_IN_GROUP"
 
         # Check attempt count
-        attempt_count = (await db.execute(
+        attempt_count: int = (await db.execute(
             select(func.count(AssessmentAttempt.id)).where(
                 AssessmentAttempt.assessment_id == assessment.id,
                 AssessmentAttempt.student_id == student_id,
             )
-        )).scalar()
+        )).scalar() or 0
 
         if attempt_count >= assessment.max_attempts:
             return False, "ASSESSMENT_MAX_ATTEMPTS"
@@ -186,7 +186,7 @@ class AssessmentService:
         return True, "OK"
 
     @staticmethod
-    def get_shuffled_questions(assessment: Assessment, seed: int = None) -> List[Question]:
+    def get_shuffled_questions(assessment: Assessment, seed: Optional[int] = None) -> list[Question]:
         """Return questions in shuffled order if configured."""
         questions = list(assessment.questions)
         if assessment.shuffle_questions:

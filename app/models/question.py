@@ -1,28 +1,25 @@
 """
 EduTrack — Question Model
-Supports 16 question types as per technical documentation.
+Supports 16 question types (see QUESTION_TYPES).
 """
 
 import uuid
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Any, Optional
 
-from sqlalchemy import (
-    Boolean,
-    Column,
-    DateTime,
-    Float,
-    ForeignKey,
-    Integer,
-    String,
-    Text,
-)
-from sqlalchemy.dialects.postgresql import UUID, JSONB
-from sqlalchemy.orm import relationship
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
+if TYPE_CHECKING:
+    from app.models.assessment import Assessment
+    from app.models.question_bank import QuestionBank
+    from app.models.question_option import QuestionOption
+    from app.models.student_answer import StudentAnswer
 
-# All supported question types
+
 QUESTION_TYPES = [
     "true_false",       # TYPE-01
     "yes_no",           # TYPE-02
@@ -42,64 +39,58 @@ QUESTION_TYPES = [
     "likert",           # TYPE-16
 ]
 
-DIFFICULTY_LEVELS = ["easy", "medium", "hard"]
-
-BLOOMS_LEVELS = [
-    "remember",
-    "understand",
-    "apply",
-    "analyze",
-    "evaluate",
-    "create",
-]
-
 
 class Question(Base):
     __tablename__ = "questions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    assessment_id = Column(UUID(as_uuid=True), ForeignKey("assessments.id", ondelete="CASCADE"), nullable=True)
-    question_bank_id = Column(UUID(as_uuid=True), ForeignKey("question_banks.id"), nullable=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    assessment_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("assessments.id"), nullable=True,
+    )
+    question_bank_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("question_banks.id"), nullable=True,
+    )
+    question_type: Mapped[str] = mapped_column(String(30))
 
-    question_type = Column(String(30), nullable=False)  # see QUESTION_TYPES
-    content = Column(Text, nullable=False)  # HTML / Markdown / LaTeX
-    explanation = Column(Text, nullable=True)  # Shown after grading
-
-    # Media
-    image_url = Column(String(500), nullable=True)
-    audio_url = Column(String(500), nullable=True)
-    video_url = Column(String(500), nullable=True)
+    # Content
+    content: Mapped[str] = mapped_column(Text)
+    explanation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    image_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    audio_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    video_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     # Scoring
-    points = Column(Float, default=1.0, nullable=False)
-    partial_scoring = Column(Boolean, default=False, nullable=False)
-    negative_marking = Column(Float, default=0.0, nullable=False)
+    points: Mapped[float] = mapped_column(Float, default=1.0)
+    partial_scoring: Mapped[bool] = mapped_column(Boolean, default=False)
+    negative_marking: Mapped[float] = mapped_column(Float, default=0.0)
 
-    # Ordering & metadata
-    order_index = Column(Integer, nullable=True)
-    topic_tag = Column(String(100), nullable=True, index=True)
-    difficulty = Column(String(10), nullable=True)  # easy, medium, hard
-    blooms_level = Column(String(20), nullable=True)
-    time_suggestion_seconds = Column(Integer, nullable=True)
+    # Ordering / metadata
+    order_index: Mapped[int] = mapped_column(Integer, default=0)
+    topic_tag: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    difficulty: Mapped[str] = mapped_column(String(20), default="medium")
+    blooms_level: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    time_suggestion_seconds: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
-    # Type-specific config (flexible JSONB)
-    config = Column(JSONB, nullable=True)
-    # Examples:
-    # fill_blank: {"blanks": [{"accepted_answers": ["photosynthesis"], "case_sensitive": false}]}
-    # numeric: {"correct_value": 9.81, "tolerance": 0.01, "unit": "m/s²"}
-    # code: {"language": "python", "test_cases": [...], "time_limit_ms": 5000, "memory_limit_mb": 256}
-    # hotspot: {"zones": [{"type": "circle", "cx": 150, "cy": 200, "r": 30}]}
-    # matching: {"allow_reuse": false}
-    # likert: {"scale_min": 1, "scale_max": 5, "labels": ["Strongly Disagree", ..., "Strongly Agree"]}
+    # Type-specific configuration (JSONB)
+    config: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
 
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
 
-    # Relationships
-    assessment = relationship("Assessment", back_populates="questions")
-    question_bank = relationship("QuestionBank", back_populates="questions")
-    options = relationship("QuestionOption", back_populates="question", cascade="all, delete-orphan", order_by="QuestionOption.order_position")
-    student_answers = relationship("StudentAnswer", back_populates="question")
+    # ── Relationships ──
+    assessment: Mapped[Optional["Assessment"]] = relationship(back_populates="questions")
+    question_bank: Mapped[Optional["QuestionBank"]] = relationship(back_populates="questions")
+    options: Mapped[list["QuestionOption"]] = relationship(
+        back_populates="question", cascade="all, delete-orphan",
+    )
+    student_answers: Mapped[list["StudentAnswer"]] = relationship(back_populates="question")
 
-    def __repr__(self):
-        return f"<Question {self.question_type} pts={self.points}>"
+    def __repr__(self) -> str:
+        return f"<Question {self.question_type}: {self.content[:40]}>"

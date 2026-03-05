@@ -49,7 +49,7 @@ async def list_groups(
         query = query.where(Group.name.ilike(f"%{search}%"))
         count_query = count_query.where(Group.name.ilike(f"%{search}%"))
 
-    total = (await db.execute(count_query)).scalar()
+    total: int = (await db.execute(count_query)).scalar() or 0
     query = query.order_by(Group.created_at.desc()).offset((page - 1) * per_page).limit(per_page)
     result = await db.execute(query)
     groups = result.scalars().all()
