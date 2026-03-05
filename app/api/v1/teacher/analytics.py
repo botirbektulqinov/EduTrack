@@ -1,0 +1,67 @@
+"""
+EduTrack — Teacher: Analytics API
+"""
+
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_db
+from app.api.deps import get_teacher_user
+from app.models.user import User
+from app.models.assessment import Assessment
+from app.schemas.common import SuccessResponse
+from app.services.analytics_service import AnalyticsService
+from app.services.proctoring_service import ProctoringService
+
+router = APIRouter(tags=["Teacher - Analytics"])
+
+
+@router.get("/groups/{group_id}/analytics", response_model=SuccessResponse)
+async def group_analytics(
+    group_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    teacher: User = Depends(get_teacher_user),
+):
+    """Get analytics for a teacher's group."""
+    # In a full implementation, aggregate all assessments for the group
+    return SuccessResponse(data={"group_id": str(group_id), "message": "Group analytics placeholder."})
+
+
+@router.get("/assessments/{assessment_id}/item-analysis", response_model=SuccessResponse)
+async def item_analysis(
+    assessment_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    teacher: User = Depends(get_teacher_user),
+):
+    """Get per-question difficulty and discrimination analysis."""
+    result = await db.execute(select(Assessment).where(Assessment.id == assessment_id))
+    assessment = result.scalar_one_or_none()
+    if not assessment:
+        raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_NOT_FOUND", "message": "Assessment not found."})
+    if teacher.role != "admin" and assessment.teacher_id != teacher.id:
+        raise HTTPException(status_code=403, detail={"code": "AUTH_INSUFFICIENT_PERMISSIONS", "message": "Not your assessment."})
+
+    analysis = await AnalyticsService.get_item_analysis(db, assessment_id)
+    return SuccessResponse(data=analysis)
+
+
+@router.get("/assessments/{assessment_id}/violations", response_model=SuccessResponse)
+async def list_violations(
+    assessment_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    teacher: User = Depends(get_teacher_user),
+):
+    """Get all violations for an assessment."""
+    result = await db.execute(select(Assessment).where(Assessment.id == assessment_id))
+    assessment = result.scalar_one_or_none()
+    if not assessment:
+        raise HTTPException(status_code=404, detail={"code": "ASSESSMENT_NOT_FOUND", "message": "Assessment not found."})
+    if teacher.role != "admin" and assessment.teacher_id != teacher.id:
+        raise HTTPException(status_code=403, detail={"code": "AUTH_INSUFFICIENT_PERMISSIONS", "message": "Not your assessment."})
+
+    violations = await ProctoringService.get_violations_for_assessment(db, assessment_id)
+    from app.schemas.violation import ViolationResponse
+    return SuccessResponse(data=[ViolationResponse.model_validate(v) for v in violations])
