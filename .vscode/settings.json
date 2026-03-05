@@ -10,5 +10,13 @@
         "**/.symlinks": true,
         "**/.plugin_symlinks": true,
         "**/__pycache__": true,
-    }
+    },
+    // "autopep8.interpreter": [
+    //     "./venv/Scripts/python.exe"
+    // ],
+    "python.defaultInterpreterPath": "./venv/Scripts/python.exe",
+    // "black-formatter.interpreter": [
+    //     "./venv/Scripts/python.exe"
+    // ]
+    // "python.useEnvironmentsExtension": false
 }

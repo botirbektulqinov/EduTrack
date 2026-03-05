@@ -7,6 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.api.deps import get_student_user
@@ -36,6 +37,7 @@ async def my_results(
 
     query = (
         select(AssessmentAttempt)
+        .options(selectinload(AssessmentAttempt.assessment))
         .where(
             AssessmentAttempt.student_id == student.id,
             AssessmentAttempt.status.in_(["submitted", "graded", "terminated"]),
@@ -47,8 +49,15 @@ async def my_results(
     result = await db.execute(query)
     attempts = result.scalars().all()
 
+    items = []
+    for a in attempts:
+        item = AttemptListResponse.model_validate(a)
+        if a.assessment:
+            item.assessment_title = a.assessment.title
+        items.append(item)
+
     return SuccessResponse(
-        data=[AttemptListResponse.model_validate(a) for a in attempts],
+        data=items,
         meta=PaginationMeta(page=page, per_page=per_page, total=count, total_pages=(count + per_page - 1) // per_page),
     )
 
@@ -60,8 +69,19 @@ async def result_detail(
     student: User = Depends(get_student_user),
 ):
     """Get specific result detail."""
+    from app.models.question import Question as QuestionModel
+    from app.schemas.question import QuestionResponse
+
     result = await db.execute(
-        select(AssessmentAttempt).where(
+        select(AssessmentAttempt)
+        .options(
+            selectinload(AssessmentAttempt.answers),
+            selectinload(AssessmentAttempt.assessment)
+                .selectinload(Assessment.questions)
+                .selectinload(QuestionModel.options),
+            selectinload(AssessmentAttempt.violations),
+        )
+        .where(
             AssessmentAttempt.id == attempt_id,
             AssessmentAttempt.student_id == student.id,
         )
@@ -70,4 +90,12 @@ async def result_detail(
     if not attempt:
         raise HTTPException(status_code=404, detail={"code": "ATTEMPT_NOT_FOUND", "message": "Attempt not found."})
 
-    return SuccessResponse(data=AttemptListResponse.model_validate(attempt))
+    from app.schemas.attempt import AttemptDetailResponse, StudentAnswerResponse, ViolationResponse
+    resp = AttemptDetailResponse.model_validate(attempt)
+    resp.answers = [StudentAnswerResponse.model_validate(a) for a in attempt.answers]
+    resp.violations = [ViolationResponse.model_validate(v) for v in attempt.violations]
+    if attempt.assessment:
+        resp.assessment_title = attempt.assessment.title
+        resp.questions = [QuestionResponse.model_validate(q) for q in attempt.assessment.questions] if attempt.assessment.questions else []
+
+    return SuccessResponse(data=resp)

@@ -5,11 +5,13 @@ EduTrack — Teacher: Assessment Management API
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.api.deps import get_teacher_user
 from app.models.user import User
+from app.models.group import Group
 from app.schemas.assessment import (
     AssessmentCreate,
     AssessmentListResponse,
@@ -23,6 +25,29 @@ from app.services.audit_service import AuditService
 router = APIRouter(tags=["Teacher - Assessments"])
 
 
+def _enrich_response(assessment) -> AssessmentResponse:
+    """Convert ORM assessment to AssessmentResponse with group_name and question_count."""
+    resp = AssessmentResponse.model_validate(assessment)
+    resp.group_name = assessment.group.name if assessment.group else None
+    resp.question_count = len(assessment.questions) if assessment.questions else 0
+    return resp
+
+
+@router.get("/groups", response_model=SuccessResponse)
+async def list_teacher_groups(
+    db: AsyncSession = Depends(get_db),
+    teacher: User = Depends(get_teacher_user),
+):
+    """List groups owned by this teacher (for assessment creation)."""
+    result = await db.execute(
+        select(Group).where(Group.teacher_id == teacher.id, Group.is_archived == False)
+    )
+    groups = result.scalars().all()
+    return SuccessResponse(
+        data=[{"id": str(g.id), "name": g.name, "subject": g.subject} for g in groups],
+    )
+
+
 @router.get("", response_model=SuccessResponse)
 async def list_assessments(
     page: int = Query(1, ge=1),
@@ -34,8 +59,14 @@ async def list_assessments(
     assessments, total = await AssessmentService.list_teacher_assessments(
         db, teacher.id, page=page, per_page=per_page,
     )
+    items = []
+    for a in assessments:
+        item = AssessmentListResponse.model_validate(a)
+        item.group_name = a.group.name if a.group else None
+        item.question_count = len(a.questions) if a.questions else 0
+        items.append(item)
     return SuccessResponse(
-        data=[AssessmentListResponse.model_validate(a) for a in assessments],
+        data=items,
         meta=PaginationMeta(page=page, per_page=per_page, total=total, total_pages=(total + per_page - 1) // per_page),
     )
 
@@ -52,7 +83,9 @@ async def create_assessment(
         db, action="ASSESSMENT_CREATED", actor_id=teacher.id, actor_role=teacher.role,
         target_type="Assessment", target_id=assessment.id,
     )
-    return SuccessResponse(data=AssessmentResponse.model_validate(assessment))
+    # Re-fetch to eagerly load relationships
+    assessment = await AssessmentService.get_assessment(db, assessment.id)
+    return SuccessResponse(data=_enrich_response(assessment))
 
 
 @router.get("/{assessment_id}", response_model=SuccessResponse)
@@ -70,7 +103,7 @@ async def get_assessment(
     if teacher.role != "admin" and assessment.teacher_id != teacher.id:
         raise HTTPException(status_code=403, detail={"code": "AUTH_INSUFFICIENT_PERMISSIONS", "message": "Not your assessment."})
 
-    return SuccessResponse(data=AssessmentResponse.model_validate(assessment))
+    return SuccessResponse(data=_enrich_response(assessment))
 
 
 @router.patch("/{assessment_id}", response_model=SuccessResponse)
@@ -88,7 +121,9 @@ async def update_assessment(
         raise HTTPException(status_code=403, detail={"code": "AUTH_INSUFFICIENT_PERMISSIONS", "message": "Not your assessment."})
 
     updated = await AssessmentService.update_assessment(db, assessment, data)
-    return SuccessResponse(data=AssessmentResponse.model_validate(updated))
+    # Re-fetch to eagerly load relationships
+    updated = await AssessmentService.get_assessment(db, updated.id)
+    return SuccessResponse(data=_enrich_response(updated))
 
 
 @router.delete("/{assessment_id}", response_model=MessageResponse)
@@ -132,7 +167,9 @@ async def publish_assessment(
         db, action="ASSESSMENT_PUBLISHED", actor_id=teacher.id, actor_role=teacher.role,
         target_type="Assessment", target_id=assessment.id,
     )
-    return SuccessResponse(data=AssessmentResponse.model_validate(published))
+    # Re-fetch to eagerly load relationships
+    published = await AssessmentService.get_assessment(db, published.id)
+    return SuccessResponse(data=_enrich_response(published))
 
 
 @router.post("/{assessment_id}/unpublish", response_model=SuccessResponse)
@@ -149,7 +186,9 @@ async def unpublish_assessment(
         raise HTTPException(status_code=403, detail={"code": "AUTH_INSUFFICIENT_PERMISSIONS", "message": "Not your assessment."})
 
     await AssessmentService.unpublish_assessment(db, assessment)
-    return SuccessResponse(data=AssessmentResponse.model_validate(assessment))
+    # Re-fetch to eagerly load relationships
+    assessment = await AssessmentService.get_assessment(db, assessment.id)
+    return SuccessResponse(data=_enrich_response(assessment))
 
 
 @router.post("/{assessment_id}/deactivate", response_model=MessageResponse)

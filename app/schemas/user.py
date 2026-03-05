@@ -27,6 +27,7 @@ class UserCreate(UserBase):
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
+    role: Optional[str] = None
     student_id_number: Optional[str] = None
     employee_id: Optional[str] = None
     department_id: Optional[UUID] = None
@@ -59,6 +60,7 @@ class UserListResponse(BaseModel):
     email: str
     full_name: str
     role: str
+    student_id_number: Optional[str] = None
     is_active: bool
     created_at: datetime
 
@@ -68,3 +70,7 @@ class UserListResponse(BaseModel):
 class BulkImportRequest(BaseModel):
     """CSV-style import. Each row: email, full_name, role, password, student_id/employee_id."""
     users: list[UserCreate]
+
+
+class ResetPasswordRequest(BaseModel):
+    new_password: str

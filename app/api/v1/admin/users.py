@@ -13,6 +13,7 @@ from app.api.deps import get_admin_user
 from app.models.user import User
 from app.schemas.user import (
     BulkImportRequest,
+    ResetPasswordRequest,
     UserCreate,
     UserListResponse,
     UserResponse,
@@ -120,6 +121,49 @@ async def deactivate_user(
         target_type="User", target_id=user.id,
     )
     return MessageResponse(message="User deactivated.")
+
+
+@router.post("/{user_id}/reactivate", response_model=MessageResponse)
+async def reactivate_user(
+    user_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    """Reactivate a deactivated user."""
+    user = await UserService.get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail={"code": "USER_NOT_FOUND", "message": "User not found."})
+    if user.is_active:
+        raise HTTPException(status_code=400, detail={"code": "ALREADY_ACTIVE", "message": "User is already active."})
+
+    user.is_active = True
+    await db.flush()
+    await db.refresh(user)
+    await AuditService.log(
+        db, action="USER_REACTIVATED", actor_id=admin.id, actor_role=admin.role,
+        target_type="User", target_id=user.id,
+    )
+    return MessageResponse(message="User reactivated.")
+
+
+@router.post("/{user_id}/reset-password", response_model=MessageResponse)
+async def reset_user_password(
+    user_id: UUID,
+    data: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(get_admin_user),
+):
+    """Reset a user's password (admin action)."""
+    user = await UserService.get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail={"code": "USER_NOT_FOUND", "message": "User not found."})
+
+    await UserService.reset_password(db, user, data.new_password)
+    await AuditService.log(
+        db, action="USER_PASSWORD_RESET", actor_id=admin.id, actor_role=admin.role,
+        target_type="User", target_id=user.id,
+    )
+    return MessageResponse(message="Password has been reset.")
 
 
 @router.post("/bulk-import", response_model=SuccessResponse, status_code=status.HTTP_201_CREATED)

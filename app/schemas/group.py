@@ -47,7 +47,7 @@ class GroupDetailResponse(GroupResponse):
 
 
 class EnrollStudentsRequest(BaseModel):
-    student_ids: List[UUID]
+    student_ids: List[str]
 
 
 class GroupListResponse(BaseModel):

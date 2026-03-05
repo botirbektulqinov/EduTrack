@@ -19,6 +19,8 @@ from app.schemas.attempt import (
     AttemptDetailResponse,
     AttemptListResponse,
     BulkManualGradeRequest,
+    StudentAnswerResponse,
+    ViolationResponse,
 )
 from app.schemas.common import MessageResponse, PaginationMeta, SuccessResponse
 from app.services.grading_service import GradingService
@@ -50,6 +52,7 @@ async def list_attempts(
 
     query = (
         select(AssessmentAttempt)
+        .options(selectinload(AssessmentAttempt.student))
         .where(AssessmentAttempt.assessment_id == assessment_id)
         .order_by(AssessmentAttempt.started_at.desc())
         .offset((page - 1) * per_page)
@@ -58,8 +61,14 @@ async def list_attempts(
     result = await db.execute(query)
     attempts = result.scalars().all()
 
+    items = []
+    for a in attempts:
+        item = AttemptListResponse.model_validate(a)
+        item.student_name = a.student.full_name if a.student else None
+        items.append(item)
+
     return SuccessResponse(
-        data=[AttemptListResponse.model_validate(a) for a in attempts],
+        data=items,
         meta=PaginationMeta(page=page, per_page=per_page, total=count, total_pages=(count + per_page - 1) // per_page),
     )
 
@@ -71,11 +80,16 @@ async def get_attempt_detail(
     teacher: User = Depends(get_teacher_user),
 ):
     """Get detailed attempt with answers and violations."""
+    from app.models.question import Question as QuestionModel
+    from app.schemas.question import QuestionResponse
+
     result = await db.execute(
         select(AssessmentAttempt)
         .options(
             selectinload(AssessmentAttempt.answers),
             selectinload(AssessmentAttempt.violations),
+            selectinload(AssessmentAttempt.student),
+            selectinload(AssessmentAttempt.assessment).selectinload(Assessment.questions).selectinload(QuestionModel.options),
         )
         .where(AssessmentAttempt.id == attempt_id)
     )
@@ -83,7 +97,13 @@ async def get_attempt_detail(
     if not attempt:
         raise HTTPException(status_code=404, detail={"code": "ATTEMPT_NOT_FOUND", "message": "Attempt not found."})
 
-    return SuccessResponse(data=AttemptDetailResponse.model_validate(attempt))
+    resp = AttemptDetailResponse.model_validate(attempt)
+    resp.answers = [StudentAnswerResponse.model_validate(a) for a in attempt.answers]
+    resp.violations = [ViolationResponse.model_validate(v) for v in attempt.violations]
+    resp.student_name = attempt.student.full_name if attempt.student else None
+    resp.assessment_title = attempt.assessment.title if attempt.assessment else None
+    resp.questions = [QuestionResponse.model_validate(q) for q in attempt.assessment.questions] if attempt.assessment and attempt.assessment.questions else []
+    return SuccessResponse(data=resp)
 
 
 @router.patch("/attempts/{attempt_id}/grade", response_model=SuccessResponse)

@@ -66,7 +66,10 @@ class AssessmentService:
     async def get_assessment(db: AsyncSession, assessment_id: UUID) -> Optional[Assessment]:
         result = await db.execute(
             select(Assessment)
-            .options(selectinload(Assessment.questions).selectinload(Question.options))
+            .options(
+                selectinload(Assessment.questions).selectinload(Question.options),
+                selectinload(Assessment.group),
+            )
             .where(Assessment.id == assessment_id)
         )
         return result.scalar_one_or_none()
@@ -87,7 +90,11 @@ class AssessmentService:
         page: int = 1,
         per_page: int = 20,
     ) -> tuple[List[Assessment], int]:
-        query = select(Assessment).where(Assessment.teacher_id == teacher_id)
+        query = (
+            select(Assessment)
+            .options(selectinload(Assessment.group), selectinload(Assessment.questions))
+            .where(Assessment.teacher_id == teacher_id)
+        )
         count_query = select(func.count(Assessment.id)).where(Assessment.teacher_id == teacher_id)
 
         total: int = (await db.execute(count_query)).scalar() or 0

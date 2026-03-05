@@ -8,6 +8,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.schemas.question import QuestionResponse
+
 
 class ProctoringSettings(BaseModel):
     enforce_fullscreen: bool = True
@@ -66,6 +68,7 @@ class AssessmentResponse(BaseModel):
     assessment_type: str
     format_type: str
     group_id: Optional[UUID]
+    group_name: Optional[str] = None
     teacher_id: Optional[UUID]
     time_limit_minutes: Optional[int]
     available_from: Optional[datetime]
@@ -84,6 +87,7 @@ class AssessmentResponse(BaseModel):
     is_published: bool
     is_active: bool
     question_count: int = 0
+    questions: List[QuestionResponse] = []
     created_at: datetime
     updated_at: datetime
 
@@ -95,6 +99,8 @@ class AssessmentListResponse(BaseModel):
     title: str
     assessment_type: str
     group_id: Optional[UUID]
+    group_name: Optional[str] = None
+    time_limit_minutes: Optional[int] = None
     is_published: bool
     is_active: bool
     available_from: Optional[datetime]

@@ -1,1 +1,1 @@
-Note, we're using Python 3.14. It was installed via Python Install Manager. So, it uses `py` command not `python` command.
+Note, we're using Python 3.14. It was installed via Python Install Manager. So, it uses `py` command not `python` command. Also we're using Bun package manager for frontend. So you can use `bun` and `bunx` commands instead of `npm` and `npx`.

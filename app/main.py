@@ -2,7 +2,7 @@
 EduTrack — Application Entry-Point
 FastAPI application factory with lifespan, CORS, and all routers mounted.
 
-Run:   uvicorn app.main:app --reload
+Run:  uvicorn app.main:app --reload
 """
 
 import logging
