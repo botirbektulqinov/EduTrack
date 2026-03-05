@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.redis import redis_client
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -67,6 +68,14 @@ async def refresh_token(
             detail={"code": "AUTH_TOKEN_EXPIRED", "message": "Invalid or expired refresh token."},
         )
 
+    # Check if token is blacklisted
+    jti = payload.get("jti")
+    if jti and await redis_client.get(f"blacklist:{jti}"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "AUTH_TOKEN_EXPIRED", "message": "Token has been revoked."},
+        )
+
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(
@@ -87,16 +96,25 @@ async def refresh_token(
 
 
 @router.post("/logout", response_model=MessageResponse)
-async def logout(current_user: User = Depends(get_current_user)):
-    """Invalidate refresh token (client should discard tokens)."""
-    # In production: add refresh token JTI to a Redis blacklist
+async def logout(
+    refresh_token: str = "",
+    current_user: User = Depends(get_current_user),
+):
+    """Invalidate refresh token by adding its JTI to Redis blacklist."""
+    if refresh_token:
+        payload = decode_token(refresh_token)
+        if payload and payload.get("jti"):
+            # Blacklist for the remaining lifetime of the token
+            from app.core.config import settings
+            ttl = settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400
+            await redis_client.setex(f"blacklist:{payload['jti']}", ttl, "1")
     return MessageResponse(message="Logged out successfully.")
 
 
 @router.get("/me", response_model=UserProfileResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
     """Get current user's profile."""
-    return current_user
+    return UserProfileResponse.model_validate(current_user)
 
 
 @router.post("/forgot-password", response_model=MessageResponse)

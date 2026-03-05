@@ -1,0 +1,93 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.page {
+  @include flex-col;
+  gap: $sp-6;
+}
+
+.header {
+  @include flex-between;
+}
+
+.headerActions {
+  display: flex;
+  gap: $sp-3;
+}
+
+.title {
+  font-size: $fs-2xl;
+  font-weight: $fw-bold;
+  color: $text;
+}
+
+/* ── Filters ── */
+.filters {
+  display: flex;
+  align-items: center;
+  gap: $sp-4;
+  flex-wrap: wrap;
+}
+
+.searchWrap {
+  position: relative;
+  flex: 1;
+  min-width: 220px;
+  max-width: 380px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: $sp-3;
+  top: 50%;
+  transform: translateY(-50%);
+  color: $gray-400;
+  pointer-events: none;
+}
+
+.searchInput {
+  @include input-base;
+  padding-left: $sp-8;
+}
+
+/* ── Table rows ── */
+.row {
+  cursor: pointer;
+  transition: background $transition-fast;
+
+  &:hover {
+    background: var(--hover-bg);
+  }
+}
+
+/* ── Modal form ── */
+.form {
+  @include flex-col;
+  gap: $sp-4;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: $sp-3;
+  margin-top: $sp-2;
+}
+
+/* ── Utility ── */
+.center {
+  @include flex-center;
+  padding: $sp-16 0;
+}
+
+.bulkHint {
+  font-size: $fs-sm;
+  color: $text-muted;
+  line-height: 1.5;
+
+  code {
+    background: var(--hover-bg);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: $fs-xs;
+  }
+}

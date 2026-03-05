@@ -1,0 +1,68 @@
+@use 'sass:color';
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.btn {
+  @include btn-base;
+}
+
+.icon {
+  @include flex-center;
+  font-size: 1.1em;
+}
+
+/* ── Variants ── */
+.primary {
+  background: $primary;
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background: $primary-dark;
+  }
+}
+
+.secondary {
+  background: var(--bg-card);
+  color: var(--text);
+  border-color: var(--border);
+
+  &:hover:not(:disabled) {
+    background: var(--hover-bg);
+    border-color: $gray-300;
+  }
+}
+
+.danger {
+  background: $danger;
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background: color.adjust($danger, $lightness: -8%);
+  }
+}
+
+.ghost {
+  background: transparent;
+  color: var(--text-muted);
+
+  &:hover:not(:disabled) {
+    background: var(--hover-bg);
+    color: var(--text);
+  }
+}
+
+/* ── Sizes ── */
+.sm {
+  padding: $sp-1 $sp-2;
+  font-size: $fs-xs;
+}
+
+.md {
+  padding: $sp-2 $sp-4;
+  font-size: $fs-sm;
+}
+
+.lg {
+  padding: $sp-3 $sp-6;
+  font-size: $fs-base;
+}

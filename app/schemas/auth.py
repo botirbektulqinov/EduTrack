@@ -3,6 +3,7 @@ EduTrack — Auth Schemas
 Login, token, password reset.
 """
 
+from uuid import UUID
 from typing import Optional
 from pydantic import BaseModel, EmailStr
 
@@ -37,13 +38,13 @@ class ChangePasswordRequest(BaseModel):
 
 
 class UserProfileResponse(BaseModel):
-    id: str
+    id: UUID
     email: str
     full_name: str
     role: str
     student_id_number: Optional[str] = None
     employee_id: Optional[str] = None
-    department_id: Optional[str] = None
+    department_id: Optional[UUID] = None
     is_active: bool
     extra_time_factor: float
     avatar_url: Optional[str] = None

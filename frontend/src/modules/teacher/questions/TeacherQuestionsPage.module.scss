@@ -1,0 +1,294 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.page {
+  @include flex-col;
+  gap: $sp-6;
+  max-width: $content-max-width;
+  margin: 0 auto;
+  padding: $sp-6;
+}
+
+.header {
+  @include flex-between;
+  flex-wrap: wrap;
+  gap: $sp-4;
+}
+
+.headerLeft {
+  @include flex-col;
+  gap: $sp-2;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: $sp-2;
+  font-size: $fs-sm;
+  color: $text-muted;
+  text-decoration: none;
+  transition: color $transition-fast;
+
+  &:hover {
+    color: $primary;
+  }
+}
+
+.title {
+  font-size: $fs-2xl;
+  font-weight: $fw-bold;
+  color: $text;
+  margin: 0;
+}
+
+.headerActions {
+  display: flex;
+  gap: $sp-3;
+}
+
+.questionList {
+  @include flex-col;
+  gap: $sp-4;
+}
+
+.questionCard {
+  @include card;
+  padding: $sp-4 $sp-5;
+  @include flex-between;
+  gap: $sp-4;
+  transition: box-shadow $transition-fast;
+
+  &:hover {
+    box-shadow: $shadow-md;
+  }
+}
+
+.questionInfo {
+  @include flex-col;
+  gap: $sp-2;
+  flex: 1;
+  min-width: 0;
+}
+
+.questionTop {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+}
+
+.orderIndex {
+  font-size: $fs-sm;
+  font-weight: $fw-semibold;
+  color: $text-muted;
+  min-width: 28px;
+}
+
+.questionContent {
+  @include truncate;
+  font-size: $fs-sm;
+  color: $text;
+  max-width: 600px;
+}
+
+.questionMeta {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  flex-wrap: wrap;
+  margin-top: $sp-1;
+}
+
+.points {
+  font-size: $fs-xs;
+  color: $text-muted;
+  font-weight: $fw-medium;
+}
+
+.questionActions {
+  display: flex;
+  gap: $sp-2;
+  flex-shrink: 0;
+}
+
+/* ── Modal form ── */
+.form {
+  @include flex-col;
+  gap: $sp-4;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $sp-4;
+}
+
+.formRowThree {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: $sp-4;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: $sp-6;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  font-size: $fs-sm;
+  color: $text;
+  cursor: pointer;
+
+  input[type='checkbox'] {
+    width: 16px;
+    height: 16px;
+    accent-color: $primary;
+    cursor: pointer;
+  }
+}
+
+/* ── Options section ── */
+.optionsSection {
+  @include flex-col;
+  gap: $sp-3;
+  padding: $sp-4;
+  background: $bg-secondary;
+  border-radius: $radius;
+  border: 1px solid $border;
+}
+
+.optionsSectionTitle {
+  font-size: $fs-sm;
+  font-weight: $fw-semibold;
+  color: $text;
+  margin: 0;
+}
+
+.optionRow {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+}
+
+.optionInput {
+  flex: 1;
+}
+
+.optionCorrect {
+  display: flex;
+  align-items: center;
+  gap: $sp-1;
+  font-size: $fs-xs;
+  color: $text-muted;
+  white-space: nowrap;
+
+  input[type='checkbox'] {
+    width: 14px;
+    height: 14px;
+    accent-color: $success;
+    cursor: pointer;
+  }
+}
+
+.removeOption {
+  @include flex-center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  color: $danger;
+  cursor: pointer;
+  border-radius: $radius-sm;
+  transition: background $transition-fast;
+
+  &:hover {
+    background: $danger-light;
+  }
+}
+
+.addOption {
+  display: inline-flex;
+  align-items: center;
+  gap: $sp-1;
+  background: none;
+  border: 1px dashed $border;
+  border-radius: $radius;
+  padding: $sp-2 $sp-3;
+  font-size: $fs-sm;
+  color: $primary;
+  cursor: pointer;
+  transition: all $transition-fast;
+  align-self: flex-start;
+
+  &:hover {
+    border-color: $primary;
+    background: rgba($primary, 0.04);
+  }
+}
+
+.formActions {
+  @include flex-between;
+  padding-top: $sp-4;
+  border-top: 1px solid $border;
+}
+
+/* ── Bulk import ── */
+.bulkSection {
+  @include flex-col;
+  gap: $sp-4;
+}
+
+.bulkHint {
+  font-size: $fs-sm;
+  color: $text-muted;
+  line-height: 1.6;
+}
+
+.fileInput {
+  width: 100%;
+  padding: $sp-3;
+  font-size: $fs-sm;
+  font-family: $font-family;
+  border: 1px solid $border;
+  border-radius: $radius;
+  background: $bg;
+  color: $text;
+  cursor: pointer;
+
+  &::file-selector-button {
+    display: inline-flex;
+    align-items: center;
+    background: $primary;
+    color: #fff;
+    border: none;
+    margin-right: $sp-3;
+    padding: $sp-1 $sp-3;
+    font-size: $fs-xs;
+    font-family: $font-family;
+    font-weight: $fw-medium;
+    border-radius: $radius-sm;
+    cursor: pointer;
+  }
+
+  &::file-selector-button:hover {
+    background: $primary-dark;
+  }
+}
+
+/* ── Loading / empty ── */
+.centered {
+  @include flex-center;
+  min-height: 300px;
+}
+
+.emptyState {
+  @include flex-center;
+  flex-direction: column;
+  gap: $sp-4;
+  padding: $sp-12;
+  color: $text-muted;
+  font-size: $fs-sm;
+}

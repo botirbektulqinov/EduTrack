@@ -1,0 +1,70 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.wrapper {
+  @include flex-col;
+  gap: $sp-4;
+}
+
+.content {
+  font-size: $fs-base;
+  color: $text;
+  line-height: 1.6;
+}
+
+.hint {
+  font-size: $fs-xs;
+  color: $text-muted;
+  margin: 0;
+}
+
+.options {
+  @include flex-col;
+  gap: $sp-2;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  padding: $sp-3;
+  border: 1px solid $border;
+  border-radius: $radius;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover {
+    border-color: $primary-light;
+    background: rgba($primary, 0.02);
+  }
+
+  &.selected {
+    border-color: $primary;
+    background: rgba($primary, 0.06);
+  }
+}
+
+.checkbox {
+  display: none;
+}
+
+.indicator {
+  @include flex-center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: 2px solid $gray-300;
+  border-radius: $radius-sm;
+  transition: all $transition-fast;
+
+  .selected & {
+    border-color: $primary;
+    background: $primary;
+  }
+}
+
+.label {
+  font-size: $fs-sm;
+  color: $text;
+  line-height: 1.5;
+}

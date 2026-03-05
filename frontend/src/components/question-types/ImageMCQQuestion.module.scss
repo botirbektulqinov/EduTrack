@@ -1,0 +1,64 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.wrapper {
+  @include flex-col;
+  gap: $sp-4;
+}
+
+.content {
+  font-size: $fs-base;
+  color: $text;
+  line-height: 1.6;
+}
+
+.questionImage {
+  max-width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  border-radius: $radius;
+  border: 1px solid $border;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: $sp-3;
+}
+
+.card {
+  @include flex-col;
+  align-items: center;
+  gap: $sp-2;
+  padding: $sp-3;
+  background: $bg;
+  border: 2px solid $border;
+  border-radius: $radius;
+  cursor: pointer;
+  font-family: $font-family;
+  transition: all $transition-fast;
+
+  &:hover {
+    border-color: $primary-light;
+    box-shadow: $shadow;
+  }
+
+  &.selected {
+    border-color: $primary;
+    background: rgba($primary, 0.04);
+    box-shadow: 0 0 0 3px rgba($primary, 0.12);
+  }
+}
+
+.optionImage {
+  width: 100%;
+  max-height: 140px;
+  object-fit: contain;
+  border-radius: $radius-sm;
+}
+
+.label {
+  font-size: $fs-sm;
+  color: $text;
+  text-align: center;
+}

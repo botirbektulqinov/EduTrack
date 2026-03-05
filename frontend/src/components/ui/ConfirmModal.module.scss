@@ -1,0 +1,15 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.message {
+  font-size: $fs-sm;
+  color: $text;
+  line-height: 1.5;
+  margin: 0 0 $sp-5;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: $sp-3;
+}

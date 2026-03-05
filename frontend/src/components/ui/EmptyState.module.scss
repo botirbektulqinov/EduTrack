@@ -1,0 +1,39 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.empty {
+  @include flex-col;
+  align-items: center;
+  justify-content: center;
+  padding: $sp-12 $sp-4;
+  text-align: center;
+}
+
+.icon {
+  @include flex-center;
+  width: 56px;
+  height: 56px;
+  border-radius: $radius-full;
+  background: var(--bg-subtle);
+  color: $gray-400;
+  font-size: $fs-2xl;
+  margin-bottom: $sp-4;
+}
+
+.title {
+  font-size: $fs-lg;
+  font-weight: $fw-semibold;
+  color: $text;
+  margin: 0 0 $sp-1;
+}
+
+.description {
+  font-size: $fs-sm;
+  color: $text-muted;
+  max-width: 360px;
+  margin: 0 0 $sp-5;
+}
+
+.action {
+  margin-top: $sp-2;
+}

@@ -26,8 +26,14 @@ async def group_analytics(
     teacher: User = Depends(get_teacher_user),
 ):
     """Get analytics for a teacher's group."""
-    # In a full implementation, aggregate all assessments for the group
-    return SuccessResponse(data={"group_id": str(group_id), "message": "Group analytics placeholder."})
+    data = await AnalyticsService.get_group_analytics(
+        db,
+        group_id,
+        teacher_id=teacher.id if teacher.role != "admin" else None,
+    )
+    if not data:
+        raise HTTPException(status_code=404, detail={"code": "GROUP_NOT_FOUND", "message": "Group not found."})
+    return SuccessResponse(data=data)
 
 
 @router.get("/assessments/{assessment_id}/item-analysis", response_model=SuccessResponse)

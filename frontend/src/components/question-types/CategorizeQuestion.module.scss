@@ -1,0 +1,124 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.wrapper {
+  @include flex-col;
+  gap: $sp-4;
+}
+
+.content {
+  font-size: $fs-base;
+  color: $text;
+  line-height: 1.6;
+}
+
+.pool {
+  @include flex-col;
+  gap: $sp-2;
+}
+
+.poolLabel {
+  font-size: $fs-xs;
+  font-weight: $fw-semibold;
+  color: $text-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.poolItems {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-2;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  padding: $sp-2 $sp-3;
+  background: $bg-secondary;
+  border: 1px solid $border;
+  border-radius: $radius;
+  font-size: $fs-sm;
+}
+
+.chipSelect {
+  padding: $sp-1 $sp-2;
+  font-size: $fs-xs;
+  font-family: $font-family;
+  border: 1px solid $border;
+  border-radius: $radius-sm;
+  background: $bg;
+  color: $text-muted;
+  cursor: pointer;
+  outline: none;
+
+  &:focus {
+    border-color: $primary;
+  }
+}
+
+.categories {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: $sp-3;
+}
+
+.category {
+  border: 1px solid $border;
+  border-radius: $radius;
+  overflow: hidden;
+}
+
+.catHeader {
+  padding: $sp-2 $sp-3;
+  background: $bg-secondary;
+  font-size: $fs-sm;
+  font-weight: $fw-semibold;
+  color: $text;
+  border-bottom: 1px solid $border;
+}
+
+.catBody {
+  @include flex-col;
+  gap: $sp-2;
+  padding: $sp-3;
+  min-height: 60px;
+}
+
+.empty {
+  font-size: $fs-xs;
+  color: $gray-400;
+  font-style: italic;
+}
+
+.catChip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-2;
+  padding: $sp-1 $sp-2;
+  background: rgba($primary, 0.06);
+  border: 1px solid rgba($primary, 0.2);
+  border-radius: $radius-sm;
+  font-size: $fs-sm;
+}
+
+.removeBtn {
+  @include flex-center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: $radius-full;
+  color: $text-muted;
+  font-size: $fs-lg;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover {
+    background: rgba($danger, 0.1);
+    color: $danger;
+  }
+}

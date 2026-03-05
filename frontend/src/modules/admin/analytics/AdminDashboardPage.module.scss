@@ -1,0 +1,99 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.page {
+  @include flex-col;
+  gap: $sp-6;
+}
+
+.title {
+  font-size: $fs-2xl;
+  font-weight: $fw-bold;
+  color: $text;
+}
+
+/* ── Stat cards grid ── */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: $sp-4;
+}
+
+.statCard {
+  @include card;
+  display: flex;
+  align-items: center;
+  gap: $sp-4;
+  padding: $sp-5;
+  border-top: 3px solid $primary;
+}
+
+.statIcon {
+  @include flex-center;
+  width: 48px;
+  height: 48px;
+  border-radius: $radius-lg;
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.statInfo {
+  @include flex-col;
+  gap: $sp-1;
+}
+
+.statValue {
+  font-size: $fs-xl;
+  font-weight: $fw-bold;
+  color: $text;
+}
+
+.statLabel {
+  font-size: $fs-xs;
+  color: $text-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Charts grid ── */
+.chartsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: $sp-6;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chartWrap {
+  width: 100%;
+  min-height: 280px;
+}
+
+.emptyChart {
+  @include flex-center;
+  min-height: 200px;
+  font-size: $fs-sm;
+  color: $text-muted;
+}
+
+/* ── Utility ── */
+.center {
+  @include flex-center;
+  padding: $sp-16 0;
+}
+
+/* ── Export Reports ── */
+.exportSection {
+  @include flex-col;
+  gap: $sp-4;
+  max-width: 480px;
+}
+
+.exportButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-3;
+}

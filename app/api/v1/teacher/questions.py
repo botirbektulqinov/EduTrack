@@ -20,6 +20,7 @@ from app.schemas.question import (
     QuestionOptionCreate,
     QuestionResponse,
     QuestionUpdate,
+    BulkQuestionImportRequest,
 )
 from app.schemas.common import MessageResponse, SuccessResponse
 
@@ -127,3 +128,77 @@ async def delete_question(
     await db.delete(question)
     await db.flush()
     return MessageResponse(message="Question deleted.")
+
+
+@router.post("/questions/bulk-import", response_model=SuccessResponse, status_code=status.HTTP_201_CREATED)
+async def bulk_import_questions(
+    data: BulkQuestionImportRequest,
+    db: AsyncSession = Depends(get_db),
+    teacher: User = Depends(get_teacher_user),
+):
+    """Bulk import questions from JSON. Each question can target an assessment or question bank."""
+    created = []
+
+    for q_data in data.questions:
+        # Verify assessment ownership if targeting an assessment
+        if q_data.assessment_id:
+            result = await db.execute(select(Assessment).where(Assessment.id == q_data.assessment_id))
+            assessment = result.scalar_one_or_none()
+            if not assessment:
+                raise HTTPException(status_code=404, detail={
+                    "code": "ASSESSMENT_NOT_FOUND",
+                    "message": f"Assessment {q_data.assessment_id} not found.",
+                })
+            if teacher.role != "admin" and assessment.teacher_id != teacher.id:
+                raise HTTPException(status_code=403, detail={
+                    "code": "AUTH_INSUFFICIENT_PERMISSIONS",
+                    "message": "Not your assessment.",
+                })
+
+        question = Question(
+            assessment_id=q_data.assessment_id,
+            question_bank_id=q_data.question_bank_id,
+            question_type=q_data.question_type,
+            content=q_data.content,
+            explanation=q_data.explanation,
+            image_url=q_data.image_url,
+            audio_url=q_data.audio_url,
+            video_url=q_data.video_url,
+            points=q_data.points,
+            partial_scoring=q_data.partial_scoring,
+            negative_marking=q_data.negative_marking,
+            order_index=q_data.order_index or 0,
+            topic_tag=q_data.topic_tag,
+            difficulty=q_data.difficulty or "medium",
+            blooms_level=q_data.blooms_level,
+            time_suggestion_seconds=q_data.time_suggestion_seconds,
+            config=q_data.config,
+        )
+        db.add(question)
+        await db.flush()
+
+        for opt_data in q_data.options:
+            option = QuestionOption(
+                question_id=question.id,
+                content=opt_data.content,
+                is_correct=opt_data.is_correct,
+                match_key=opt_data.match_key,
+                category_key=opt_data.category_key,
+                order_position=opt_data.order_position,
+                image_url=opt_data.image_url,
+            )
+            db.add(option)
+
+        created.append(question)
+
+    await db.flush()
+
+    # Reload with options
+    result_questions = []
+    for q in created:
+        res = await db.execute(
+            select(Question).options(selectinload(Question.options)).where(Question.id == q.id)
+        )
+        result_questions.append(res.scalar_one())
+
+    return SuccessResponse(data=[QuestionResponse.model_validate(q) for q in result_questions])

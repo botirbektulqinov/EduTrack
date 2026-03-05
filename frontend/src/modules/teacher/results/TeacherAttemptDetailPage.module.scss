@@ -1,0 +1,161 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.page {
+  @include flex-col;
+  gap: $sp-6;
+}
+
+.backLink {
+  @include btn-base;
+  background: none;
+  color: $text-muted;
+  padding: 0;
+  gap: $sp-2;
+  font-size: $fs-sm;
+  align-self: flex-start;
+
+  &:hover {
+    color: $primary;
+  }
+}
+
+.header {
+  @include flex-between;
+  flex-wrap: wrap;
+  gap: $sp-4;
+
+  h1 {
+    font-size: $fs-2xl;
+    font-weight: $fw-bold;
+    color: $text;
+    margin: 0;
+  }
+}
+
+/* ── Info Grid ── */
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: $sp-4;
+
+  > div {
+    @include flex-col;
+    gap: $sp-1;
+  }
+}
+
+.infoLabel {
+  font-size: $fs-xs;
+  font-weight: $fw-medium;
+  color: $text-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.infoValue {
+  font-size: $fs-sm;
+  color: $text;
+}
+
+/* ── Answers ── */
+.answersSection {
+  @include flex-col;
+  gap: $sp-4;
+}
+
+.answerCard {
+  @include card;
+  padding: $sp-4;
+  @include flex-col;
+  gap: $sp-3;
+}
+
+.answerHeader {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  font-size: $fs-sm;
+  color: $text;
+}
+
+.answerBody {
+  font-size: $fs-sm;
+  color: $text;
+  line-height: 1.6;
+
+  p {
+    margin: 0;
+  }
+}
+
+.codeBlock {
+  background: var(--bg-subtle);
+  border: 1px solid $border;
+  border-radius: $radius;
+  padding: $sp-3;
+  font-family: $font-mono;
+  font-size: $fs-xs;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+.answerMeta {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  font-size: $fs-sm;
+  color: $text-muted;
+}
+
+/* ── Grading Form ── */
+.gradeForm {
+  @include flex-col;
+  gap: $sp-6;
+}
+
+.gradeItem {
+  @include flex-col;
+  gap: $sp-3;
+  padding-bottom: $sp-5;
+  border-bottom: 1px solid $border;
+
+  &:last-of-type {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+}
+
+.gradeQuestion {
+  font-size: $fs-sm;
+  color: $text;
+}
+
+.maxPoints {
+  color: $text-muted;
+  margin-left: $sp-2;
+  font-weight: $fw-normal;
+}
+
+.gradeFields {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: $sp-4;
+  align-items: start;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: $sp-3;
+}
+
+/* ── Utility ── */
+.center {
+  @include flex-center;
+  padding: $sp-16 0;
+}

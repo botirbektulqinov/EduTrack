@@ -1,0 +1,48 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.wrapper {
+  width: 100%;
+  overflow-x: auto;
+  @include scrollbar;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: $fs-sm;
+
+  th,
+  td {
+    padding: $sp-3 $sp-4;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  th {
+    font-weight: $fw-semibold;
+    color: var(--text-muted);
+    background: var(--hover-bg);
+    border-bottom: 1px solid var(--border);
+    font-size: $fs-xs;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  td {
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  tbody tr {
+    transition: background $transition-fast;
+
+    &:nth-child(even) {
+      background: var(--hover-bg);
+    }
+
+    &:hover {
+      background: var(--hover-bg);
+    }
+  }
+}

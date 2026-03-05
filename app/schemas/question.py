@@ -60,6 +60,17 @@ class QuestionCreate(BaseModel):
     options: List[QuestionOptionCreate] = []
 
 
+class BulkQuestionCreate(QuestionCreate):
+    """Question create with optional assessment/bank targeting for bulk import."""
+    assessment_id: Optional[UUID] = None
+    question_bank_id: Optional[UUID] = None
+
+
+class BulkQuestionImportRequest(BaseModel):
+    """Bulk import questions from JSON."""
+    questions: List[BulkQuestionCreate]
+
+
 class QuestionUpdate(BaseModel):
     question_type: Optional[str] = None
     content: Optional[str] = None

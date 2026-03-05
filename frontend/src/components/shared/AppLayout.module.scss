@@ -1,0 +1,30 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.layout {
+  display: grid;
+  grid-template-columns: $sidebar-width 1fr;
+  grid-template-rows: $navbar-height 1fr;
+  grid-template-areas:
+    'sidebar navbar'
+    'sidebar content';
+  min-height: 100vh;
+  transition: grid-template-columns $transition-slow;
+
+  &.collapsed {
+    grid-template-columns: $sidebar-collapsed 1fr;
+  }
+}
+
+.content {
+  grid-area: content;
+  padding: $sp-6;
+  overflow-y: auto;
+  max-height: calc(100vh - #{$navbar-height});
+  background: $bg-secondary;
+  @include scrollbar;
+
+  @media (max-width: 768px) {
+    padding: $sp-4;
+  }
+}

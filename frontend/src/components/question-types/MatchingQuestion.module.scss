@@ -1,0 +1,57 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.wrapper {
+  @include flex-col;
+  gap: $sp-4;
+}
+
+.content {
+  font-size: $fs-base;
+  color: $text;
+  line-height: 1.6;
+}
+
+.table {
+  @include flex-col;
+  border: 1px solid $border;
+  border-radius: $radius;
+  overflow: hidden;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid $border;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.header {
+  background: $bg-secondary;
+  font-weight: $fw-semibold;
+  font-size: $fs-xs;
+  color: $text-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cell {
+  padding: $sp-3;
+  font-size: $fs-sm;
+  display: flex;
+  align-items: center;
+
+  &:first-child {
+    border-right: 1px solid $border;
+  }
+}
+
+.select {
+  @include input-base;
+  width: auto;
+  min-width: 160px;
+  cursor: pointer;
+}

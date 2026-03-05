@@ -1,0 +1,95 @@
+/* ─── EduTrack — Reusable Mixins ─── */
+@use 'variables' as *;
+
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@mixin flex-col {
+  display: flex;
+  flex-direction: column;
+}
+
+@mixin card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: $radius-lg;
+  box-shadow: var(--shadow);
+}
+
+@mixin input-base {
+  width: 100%;
+  padding: $sp-2 $sp-3;
+  font-size: $fs-sm;
+  font-family: $font-family;
+  border: 1px solid var(--border);
+  border-radius: $radius;
+  background: var(--input-bg);
+  color: var(--text);
+  transition: border-color $transition-fast, box-shadow $transition-fast, background-color 0.2s ease;
+  outline: none;
+
+  &::placeholder {
+    color: var(--text-muted);
+  }
+
+  &:focus {
+    border-color: $primary;
+    box-shadow: 0 0 0 3px rgba($primary, 0.12);
+  }
+
+  &:disabled {
+    background: var(--hover-bg);
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+}
+
+@mixin btn-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $sp-2;
+  padding: $sp-2 $sp-4;
+  font-size: $fs-sm;
+  font-weight: $fw-medium;
+  font-family: $font-family;
+  border: 1px solid transparent;
+  border-radius: $radius;
+  cursor: pointer;
+  transition: all $transition-fast;
+  text-decoration: none;
+  line-height: 1.5;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@mixin scrollbar {
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: $gray-300;
+    border-radius: 3px;
+  }
+}

@@ -1,0 +1,45 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.wrapper {
+  @include flex-col;
+  gap: $sp-4;
+}
+
+.content {
+  font-size: $fs-base;
+  color: $text;
+  line-height: 1.6;
+}
+
+.buttons {
+  display: flex;
+  gap: $sp-3;
+}
+
+.btn {
+  @include flex-center;
+  flex: 1;
+  padding: $sp-3 $sp-4;
+  font-size: $fs-base;
+  font-weight: $fw-medium;
+  font-family: $font-family;
+  border: 2px solid $border;
+  border-radius: $radius;
+  background: $bg;
+  color: $text;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover {
+    border-color: $primary-light;
+    background: rgba($primary, 0.04);
+  }
+
+  &.selected {
+    border-color: $primary;
+    background: rgba($primary, 0.08);
+    color: $primary;
+    font-weight: $fw-semibold;
+  }
+}

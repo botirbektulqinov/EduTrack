@@ -1,0 +1,39 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.wrapper {
+  @include flex-col;
+  gap: $sp-4;
+}
+
+.sentence {
+  font-size: $fs-base;
+  color: $text;
+  line-height: 2.2;
+}
+
+.blank {
+  display: inline-block;
+  width: 140px;
+  padding: $sp-1 $sp-2;
+  margin: 0 $sp-1;
+  font-size: $fs-sm;
+  font-family: $font-family;
+  border: none;
+  border-bottom: 2px solid $primary-light;
+  background: rgba($primary, 0.04);
+  color: $text;
+  outline: none;
+  text-align: center;
+  transition: border-color $transition-fast;
+
+  &::placeholder {
+    color: $gray-400;
+    font-size: $fs-xs;
+  }
+
+  &:focus {
+    border-bottom-color: $primary;
+    background: rgba($primary, 0.08);
+  }
+}

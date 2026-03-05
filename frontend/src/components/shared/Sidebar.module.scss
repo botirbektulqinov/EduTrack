@@ -1,0 +1,110 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.sidebar {
+  grid-area: sidebar;
+  @include flex-col;
+  width: $sidebar-width;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+  transition: width $transition-slow, background-color 0.2s ease, border-color 0.2s ease;
+  overflow: hidden;
+  z-index: 10;
+
+  &.collapsed {
+    width: $sidebar-collapsed;
+  }
+}
+
+.logo {
+  @include flex-center;
+  gap: $sp-2;
+  height: $navbar-height;
+  padding: 0 $sp-4;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.logoIcon {
+  @include flex-center;
+  width: 36px;
+  height: 36px;
+  background: $primary;
+  color: #fff;
+  border-radius: $radius;
+  font-weight: $fw-bold;
+  font-size: $fs-lg;
+  flex-shrink: 0;
+}
+
+.logoText {
+  font-size: $fs-xl;
+  font-weight: $fw-bold;
+  color: var(--text-heading);
+  white-space: nowrap;
+}
+
+.nav {
+  @include flex-col;
+  flex: 1;
+  padding: $sp-3;
+  gap: $sp-1;
+  overflow-y: auto;
+  @include scrollbar;
+}
+
+.link {
+  @include flex-center;
+  justify-content: flex-start;
+  gap: $sp-3;
+  padding: $sp-2 $sp-3;
+  border-radius: $radius;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: $fs-sm;
+  font-weight: $fw-medium;
+  transition: all $transition-fast;
+  white-space: nowrap;
+
+  &:hover {
+    background: var(--hover-bg);
+    color: var(--text);
+  }
+
+  &.active {
+    background: rgba($primary, 0.08);
+    color: $primary;
+  }
+}
+
+.icon {
+  @include flex-center;
+  width: 20px;
+  height: 20px;
+  font-size: $fs-lg;
+  flex-shrink: 0;
+}
+
+.label {
+  @include truncate;
+}
+
+.collapseBtn {
+  @include flex-center;
+  height: 48px;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: $fs-lg;
+  flex-shrink: 0;
+  transition: color $transition-fast;
+
+  &:hover {
+    color: var(--text);
+  }
+}

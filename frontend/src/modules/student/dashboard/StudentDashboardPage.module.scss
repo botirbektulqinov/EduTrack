@@ -1,0 +1,255 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.page {
+  @include flex-col;
+  gap: $sp-6;
+}
+
+.title {
+  font-size: $fs-2xl;
+  font-weight: $fw-bold;
+  color: $text;
+}
+
+/* ── Stat cards ── */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: $sp-4;
+}
+
+.statCard {
+  @include card;
+  display: flex;
+  align-items: center;
+  gap: $sp-4;
+  padding: $sp-5;
+  border-top: 3px solid $primary;
+}
+
+.statIcon {
+  @include flex-center;
+  width: 48px;
+  height: 48px;
+  border-radius: $radius-lg;
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.statInfo {
+  @include flex-col;
+  gap: $sp-1;
+}
+
+.statValue {
+  font-size: $fs-xl;
+  font-weight: $fw-bold;
+  color: $text;
+}
+
+.statLabel {
+  font-size: $fs-xs;
+  color: $text-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Charts ── */
+.chartWrap {
+  width: 100%;
+  min-height: 300px;
+}
+
+.emptyChart {
+  @include flex-center;
+  min-height: 160px;
+  font-size: $fs-sm;
+  color: $text-muted;
+}
+
+/* ── Two-column layout ── */
+.twoCol {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: $sp-6;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Subject performance bars ── */
+.subjectList {
+  @include flex-col;
+  gap: $sp-4;
+}
+
+.subjectItem {
+  @include flex-col;
+  gap: $sp-1;
+}
+
+.subjectHeader {
+  @include flex-between;
+}
+
+.subjectName {
+  font-size: $fs-sm;
+  font-weight: $fw-medium;
+  color: $text;
+}
+
+.subjectMeta {
+  font-size: $fs-xs;
+  color: $text-muted;
+}
+
+.barTrack {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-subtle);
+  border-radius: $radius-full;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: $radius-full;
+  transition: width $transition-slow;
+}
+
+.barLabel {
+  font-size: $fs-xs;
+  font-weight: $fw-semibold;
+  color: $text-muted;
+}
+
+/* ── Weak topic tags ── */
+.topicTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-2;
+}
+
+/* ── Recent results ── */
+.recentList {
+  @include flex-col;
+  gap: $sp-2;
+}
+
+.recentItem {
+  @include flex-between;
+  padding: $sp-3;
+  border-radius: $radius;
+  background: var(--hover-bg);
+}
+
+.recentInfo {
+  @include flex-col;
+  gap: $sp-1;
+}
+
+.recentDate {
+  font-size: $fs-sm;
+  font-weight: $fw-medium;
+  color: $text;
+}
+
+.recentId {
+  font-size: $fs-xs;
+  font-family: $font-mono;
+  color: $text-muted;
+}
+
+.recentScore {
+  font-size: $fs-lg;
+  font-weight: $fw-bold;
+}
+
+/* ── Utility ── */
+.center {
+  @include flex-center;
+  padding: $sp-16 0;
+}
+
+/* ── Available Assessments ── */
+.assessmentList {
+  @include flex-col;
+  gap: $sp-3;
+}
+
+.assessmentCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-4;
+  padding: $sp-4;
+  border-radius: $radius;
+  background: var(--hover-bg);
+  border: 1px solid var(--border);
+  transition: box-shadow $transition-fast;
+
+  &:hover {
+    box-shadow: $shadow-sm;
+  }
+
+  @media (max-width: 600px) {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.assessmentInfo {
+  @include flex-col;
+  gap: $sp-2;
+  flex: 1;
+  min-width: 0;
+}
+
+.assessmentTitle {
+  font-size: $fs-base;
+  font-weight: $fw-semibold;
+  color: $text;
+  margin: 0;
+}
+
+.assessmentMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $sp-2;
+}
+
+.timeBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: $fs-xs;
+  color: $text-muted;
+}
+
+.attemptInfo {
+  font-size: $fs-xs;
+  color: $text-muted;
+}
+
+.deadline {
+  font-size: $fs-xs;
+  color: $danger;
+  font-weight: $fw-medium;
+}
+
+.assessmentDesc {
+  font-size: $fs-sm;
+  color: $text-muted;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.assessmentAction {
+  flex-shrink: 0;
+}

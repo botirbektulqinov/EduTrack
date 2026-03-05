@@ -1,0 +1,94 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.navbar {
+  grid-area: navbar;
+  @include flex-between;
+  height: $navbar-height;
+  padding: 0 $sp-6;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.left {
+  display: flex;
+  align-items: center;
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+}
+
+.iconBtn {
+  @include flex-center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  border-radius: $radius;
+  cursor: pointer;
+  font-size: $fs-lg;
+  transition: all $transition-fast;
+
+  &:hover {
+    background: var(--hover-bg);
+    color: var(--text);
+  }
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  padding: $sp-1 $sp-2;
+  border-radius: $radius;
+}
+
+.avatar {
+  @include flex-center;
+  width: 34px;
+  height: 34px;
+  border-radius: $radius-full;
+  background: $primary;
+  color: #fff;
+  font-weight: $fw-semibold;
+  font-size: $fs-sm;
+  flex-shrink: 0;
+}
+
+.info {
+  @include flex-col;
+  line-height: 1.2;
+}
+
+.name {
+  font-size: $fs-sm;
+  font-weight: $fw-medium;
+  color: $text;
+}
+
+.role {
+  font-size: $fs-xs;
+  color: $text-muted;
+  text-transform: capitalize;
+}
+
+/* ── Change Password Form ── */
+.pwForm {
+  @include flex-col;
+  gap: $sp-4;
+}
+
+.pwActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: $sp-3;
+  margin-top: $sp-2;
+}

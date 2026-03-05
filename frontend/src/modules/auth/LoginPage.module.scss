@@ -1,0 +1,39 @@
+@use '../../styles/variables' as *;
+
+.wrapper {
+  width: 100%;
+}
+
+.title {
+  font-size: $fs-2xl;
+  font-weight: $fw-bold;
+  margin-bottom: $sp-1;
+  color: $gray-900;
+}
+
+.subtitle {
+  font-size: $fs-sm;
+  color: $text-muted;
+  margin-bottom: $sp-6;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: $sp-4;
+}
+
+.footer {
+  margin-top: $sp-4;
+  text-align: center;
+  font-size: $fs-sm;
+
+  a {
+    color: $primary;
+    font-weight: $fw-medium;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}

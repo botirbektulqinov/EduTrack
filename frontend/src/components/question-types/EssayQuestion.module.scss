@@ -1,0 +1,26 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.wrapper {
+  @include flex-col;
+  gap: $sp-4;
+}
+
+.content {
+  font-size: $fs-base;
+  color: $text;
+  line-height: 1.6;
+}
+
+.textarea {
+  @include input-base;
+  resize: vertical;
+  min-height: 200px;
+  line-height: 1.6;
+}
+
+.counter {
+  font-size: $fs-xs;
+  color: $text-muted;
+  text-align: right;
+}

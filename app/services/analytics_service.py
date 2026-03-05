@@ -90,7 +90,129 @@ class AnalyticsService:
             "recent_results": score_trend[-10:] if score_trend else [],
         }
 
+    @staticmethod
+    async def get_subject_breakdown(db: AsyncSession, student_id: UUID) -> list[dict]:
+        """Per-subject (group) performance breakdown for a student."""
+        # Get all groups the student is enrolled in
+        enrollments = (await db.execute(
+            select(GroupEnrollment.group_id).where(GroupEnrollment.student_id == student_id)
+        )).scalars().all()
+
+        if not enrollments:
+            return []
+
+        breakdown = []
+        for group_id in enrollments:
+            group = (await db.execute(select(Group).where(Group.id == group_id))).scalar_one_or_none()
+            if not group:
+                continue
+
+            # Get all assessments for this group
+            assessment_ids = (await db.execute(
+                select(Assessment.id).where(Assessment.group_id == group_id)
+            )).scalars().all()
+
+            if not assessment_ids:
+                breakdown.append({
+                    "group_id": str(group_id),
+                    "group_name": group.name,
+                    "subject": group.subject or group.name,
+                    "assessments_taken": 0,
+                    "average_score": None,
+                    "pass_rate": None,
+                })
+                continue
+
+            # Get student's attempts for these assessments
+            result = await db.execute(
+                select(AssessmentAttempt.score_percent)
+                .where(
+                    AssessmentAttempt.student_id == student_id,
+                    AssessmentAttempt.assessment_id.in_(assessment_ids),
+                    AssessmentAttempt.status.in_(["submitted", "graded"]),
+                    AssessmentAttempt.score_percent.isnot(None),
+                )
+            )
+            scores = [row[0] for row in result]
+            passing = [s for s in scores if s >= 50]
+
+            breakdown.append({
+                "group_id": str(group_id),
+                "group_name": group.name,
+                "subject": group.subject or group.name,
+                "assessments_taken": len(scores),
+                "average_score": round(sum(scores) / len(scores), 2) if scores else None,
+                "pass_rate": round(len(passing) / len(scores) * 100, 2) if scores else None,
+            })
+
+        return breakdown
+
     # ── Teacher Analytics ──
+
+    @staticmethod
+    async def get_group_analytics(db: AsyncSession, group_id: UUID, teacher_id: UUID | None = None) -> dict:
+        """Aggregate analytics for all assessments within a group."""
+        # Get group info
+        group = (await db.execute(select(Group).where(Group.id == group_id))).scalar_one_or_none()
+        if not group:
+            return {}
+
+        # Get assessments for this group
+        q = select(Assessment).where(Assessment.group_id == group_id)
+        if teacher_id:
+            q = q.where(Assessment.teacher_id == teacher_id)
+        assessments = (await db.execute(q)).scalars().all()
+        assessment_ids = [a.id for a in assessments]
+
+        if not assessment_ids:
+            return {
+                "group_id": str(group_id),
+                "group_name": group.name,
+                "total_assessments": 0,
+                "total_students_enrolled": 0,
+                "overall_pass_rate": None,
+                "average_score": None,
+                "assessment_summaries": [],
+            }
+
+        # Get enrolled student count
+        enrolled_count = (await db.execute(
+            select(func.count(GroupEnrollment.id)).where(GroupEnrollment.group_id == group_id)
+        )).scalar() or 0
+
+        # All graded attempts for these assessments
+        result = await db.execute(
+            select(AssessmentAttempt.score_percent)
+            .where(
+                AssessmentAttempt.assessment_id.in_(assessment_ids),
+                AssessmentAttempt.status.in_(["submitted", "graded"]),
+                AssessmentAttempt.score_percent.isnot(None),
+            )
+        )
+        all_scores = [row[0] for row in result]
+        passing = [s for s in all_scores if s >= 50]
+
+        # Per-assessment summary
+        summaries = []
+        for a in assessments:
+            stats = await AnalyticsService.get_assessment_stats(db, a.id)
+            summaries.append({
+                "assessment_id": str(a.id),
+                "title": a.title,
+                "attempts_count": stats["attempts_count"],
+                "mean_score": stats["mean_score"],
+                "pass_rate": stats["pass_rate"],
+            })
+
+        return {
+            "group_id": str(group_id),
+            "group_name": group.name,
+            "total_assessments": len(assessments),
+            "total_students_enrolled": enrolled_count,
+            "overall_pass_rate": round(len(passing) / len(all_scores) * 100, 2) if all_scores else None,
+            "average_score": round(sum(all_scores) / len(all_scores), 2) if all_scores else None,
+            "assessment_summaries": summaries,
+        }
 
     @staticmethod
     async def get_assessment_stats(db: AsyncSession, assessment_id: UUID) -> dict:

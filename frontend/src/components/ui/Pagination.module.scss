@@ -1,0 +1,49 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: $sp-1;
+  justify-content: center;
+  padding: $sp-4 0;
+}
+
+.btn {
+  @include flex-center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 $sp-2;
+  border: 1px solid var(--border);
+  border-radius: $radius;
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: $fs-sm;
+  font-weight: $fw-medium;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover:not(:disabled):not(.active) {
+    background: var(--hover-bg);
+    border-color: $gray-300;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &.active {
+    background: $primary;
+    border-color: $primary;
+    color: #fff;
+  }
+}
+
+.ellipsis {
+  @include flex-center;
+  width: 36px;
+  height: 36px;
+  color: var(--text-muted);
+  font-size: $fs-sm;
+}

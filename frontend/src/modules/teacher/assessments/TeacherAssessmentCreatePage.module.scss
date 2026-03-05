@@ -1,0 +1,65 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.page {
+  @include flex-col;
+  gap: $sp-6;
+}
+
+.back {
+  @include btn-base;
+  background: none;
+  color: $text-muted;
+  padding: 0;
+  gap: $sp-2;
+  font-size: $fs-sm;
+  align-self: flex-start;
+
+  &:hover {
+    color: $primary;
+  }
+}
+
+/* ── Form ── */
+.form {
+  @include flex-col;
+  gap: $sp-5;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: $sp-4;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.checkboxGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-5;
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: $sp-2;
+    font-size: $fs-sm;
+    color: $text;
+    cursor: pointer;
+
+    input[type='checkbox'] {
+      width: 1rem;
+      height: 1rem;
+      accent-color: $primary;
+    }
+  }
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: $sp-3;
+  margin-top: $sp-2;
+}

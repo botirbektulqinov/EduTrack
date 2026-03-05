@@ -1,0 +1,63 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.page {
+  @include flex-col;
+  gap: $sp-6;
+  max-width: 720px;
+}
+
+.title {
+  font-size: $fs-2xl;
+  font-weight: $fw-bold;
+  color: $text;
+}
+
+// .reportCard {
+  // sits inside the card component
+// }
+
+/* ── Form ── */
+.form {
+  @include flex-col;
+  gap: $sp-4;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: $sp-4;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: $sp-2;
+}
+
+/* ── Download card ── */
+// .downloadCard {
+  // sits inside the card component
+// }
+
+.downloadContent {
+  @include flex-center;
+  gap: $sp-3;
+  padding: $sp-4 0;
+  color: $text-muted;
+  font-size: $fs-sm;
+}
+
+.downloadLink {
+  color: $primary;
+  font-weight: $fw-medium;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}

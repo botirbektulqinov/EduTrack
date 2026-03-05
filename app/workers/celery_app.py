@@ -44,4 +44,8 @@ celery_app.conf.beat_schedule = {
         "task": "app.workers.analytics_worker.flag_at_risk_students",
         "schedule": crontab(hour=3, minute=0),  # Every day at 03:00 UTC
     },
+    "expire-assessments": {
+        "task": "app.workers.analytics_worker.expire_assessments",
+        "schedule": crontab(minute="*/5"),  # Every 5 minutes
+    },
 }

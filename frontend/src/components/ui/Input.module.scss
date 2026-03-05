@@ -1,0 +1,36 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.group {
+  @include flex-col;
+  gap: $sp-1;
+}
+
+.label {
+  font-size: $fs-sm;
+  font-weight: $fw-medium;
+  color: var(--text);
+}
+
+.input {
+  @include input-base;
+  height: 40px;
+
+  &.hasError {
+    border-color: $danger;
+
+    &:focus {
+      box-shadow: 0 0 0 3px rgba($danger, 0.12);
+    }
+  }
+}
+
+.error {
+  font-size: $fs-xs;
+  color: $danger;
+}
+
+.helper {
+  font-size: $fs-xs;
+  color: $text-muted;
+}

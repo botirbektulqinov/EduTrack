@@ -1,0 +1,88 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.wrapper {
+  @include flex-col;
+  gap: $sp-4;
+}
+
+.content {
+  font-size: $fs-base;
+  color: $text;
+  line-height: 1.6;
+}
+
+.hint {
+  font-size: $fs-xs;
+  color: $text-muted;
+  margin: 0;
+}
+
+.list {
+  @include flex-col;
+  gap: $sp-2;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: $sp-3;
+  padding: $sp-3;
+  background: $bg;
+  border: 1px solid $border;
+  border-radius: $radius;
+  transition: box-shadow $transition-fast;
+
+  &:hover {
+    box-shadow: $shadow;
+  }
+}
+
+.index {
+  @include flex-center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  font-size: $fs-xs;
+  font-weight: $fw-semibold;
+  color: $primary;
+  background: rgba($primary, 0.08);
+  border-radius: $radius-full;
+}
+
+.label {
+  flex: 1;
+  font-size: $fs-sm;
+  color: $text;
+}
+
+.arrows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.arrowBtn {
+  @include flex-center;
+  width: 24px;
+  height: 20px;
+  padding: 0;
+  font-size: 10px;
+  background: $bg-secondary;
+  border: 1px solid $border;
+  border-radius: 3px;
+  cursor: pointer;
+  color: $text-muted;
+  transition: all $transition-fast;
+
+  &:hover:not(:disabled) {
+    background: $primary;
+    border-color: $primary;
+    color: #fff;
+  }
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+}

@@ -1,0 +1,112 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.page {
+  @include flex-col;
+  gap: $sp-6;
+}
+
+.back {
+  @include btn-base;
+  background: none;
+  color: $text-muted;
+  padding: 0;
+  gap: $sp-2;
+  font-size: $fs-sm;
+  align-self: flex-start;
+
+  &:hover {
+    color: $primary;
+  }
+}
+
+.cardActions {
+  display: flex;
+  gap: $sp-2;
+}
+
+/* ── Info grid ── */
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: $sp-4;
+}
+
+.infoItem {
+  @include flex-col;
+  gap: $sp-1;
+}
+
+.infoLabel {
+  font-size: $fs-xs;
+  font-weight: $fw-medium;
+  color: $text-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.infoValue {
+  font-size: $fs-sm;
+  color: $text;
+}
+
+/* ── Form ── */
+.form {
+  @include flex-col;
+  gap: $sp-4;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: $sp-4;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: $sp-3;
+  margin-top: $sp-2;
+}
+
+/* ── Danger zone ── */
+.dangerZone {
+  @include flex-col;
+  gap: $sp-4;
+}
+
+.actionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-4;
+  padding: $sp-4;
+  border: 1px solid var(--border);
+  border-radius: $radius;
+
+  div {
+    @include flex-col;
+    gap: $sp-1;
+
+    strong {
+      font-size: $fs-sm;
+      color: var(--text-heading);
+    }
+
+    p {
+      font-size: $fs-xs;
+      color: var(--text-muted);
+      margin: 0;
+    }
+  }
+}
+
+/* ── Utility ── */
+.center {
+  @include flex-center;
+  padding: $sp-16 0;
+}

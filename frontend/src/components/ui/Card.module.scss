@@ -1,0 +1,30 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.card {
+  @include card;
+  overflow: hidden;
+}
+
+.header {
+  @include flex-between;
+  padding: $sp-4 $sp-5;
+  border-bottom: 1px solid var(--border);
+}
+
+.title {
+  font-size: $fs-lg;
+  font-weight: $fw-semibold;
+  color: var(--text-heading);
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+}
+
+.body {
+  padding: $sp-5;
+}

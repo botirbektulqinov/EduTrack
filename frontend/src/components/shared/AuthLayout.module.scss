@@ -1,0 +1,30 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.wrapper {
+  @include flex-center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, $primary-dark 0%, $primary 50%, $primary-light 100%);
+  padding: $sp-4;
+}
+
+.card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--bg-card);
+  border-radius: $radius-xl;
+  box-shadow: $shadow-lg;
+  padding: $sp-8 $sp-8 $sp-6;
+}
+
+.logo {
+  text-align: center;
+  margin-bottom: $sp-6;
+
+  h1 {
+    font-size: $fs-3xl;
+    font-weight: $fw-bold;
+    color: $primary;
+    letter-spacing: -0.02em;
+  }
+}

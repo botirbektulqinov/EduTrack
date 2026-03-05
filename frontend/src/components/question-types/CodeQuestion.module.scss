@@ -1,0 +1,57 @@
+@use '../../styles/variables' as *;
+@use '../../styles/mixins' as *;
+
+.wrapper {
+  @include flex-col;
+  gap: $sp-4;
+}
+
+.content {
+  font-size: $fs-base;
+  color: $text;
+  line-height: 1.6;
+}
+
+.editorWrap {
+  display: flex;
+  border: 1px solid $border;
+  border-radius: $radius;
+  overflow: hidden;
+  background: $gray-900;
+}
+
+.lineNumbers {
+  display: flex;
+  flex-direction: column;
+  padding: $sp-3 $sp-2;
+  background: $gray-800;
+  user-select: none;
+  min-width: 40px;
+  text-align: right;
+
+  span {
+    font-family: $font-mono;
+    font-size: $fs-xs;
+    line-height: 1.6;
+    color: $gray-500;
+  }
+}
+
+.editor {
+  flex: 1;
+  padding: $sp-3;
+  font-family: $font-mono;
+  font-size: $fs-sm;
+  line-height: 1.6;
+  color: $gray-100;
+  background: $gray-900;
+  border: none;
+  outline: none;
+  resize: vertical;
+  min-height: 240px;
+  tab-size: 2;
+
+  &::placeholder {
+    color: $gray-600;
+  }
+}

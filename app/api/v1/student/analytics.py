@@ -30,5 +30,5 @@ async def subject_breakdown(
     student: User = Depends(get_student_user),
 ):
     """Get per-subject performance breakdown."""
-    # Placeholder — requires joining attempts with assessments and groups
-    return SuccessResponse(data=[])
+    data = await AnalyticsService.get_subject_breakdown(db, student.id)
+    return SuccessResponse(data=data)
