@@ -204,3 +204,28 @@
   &[data-color='flagged']    { background: $color-warning; }
   &[data-color='unanswered'] { background: $border-color; }
 }
+
+/* ── Violation overlay ── */
+.violationOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.violationBox {
+  background: $bg-card;
+  color: $text-primary;
+  padding: 1.5rem;
+  border-radius: $radius-md;
+  max-width: 520px;
+  text-align: center;
+}
+
+.violationOverlay[data-final='true'] .violationBox {
+  border: 2px solid $color-danger;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+}

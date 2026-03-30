@@ -157,7 +157,17 @@ export default function TeacherQuestionsPage() {
       const res = await api.post(`/teacher/assessments/${id}/questions`, data);
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (resData) => {
+      // Ensure UI updates immediately: optimistic append then invalidate to refetch authoritative data
+      const created = (resData && (resData.data ?? resData)) as Question | undefined;
+      if (created) {
+        queryClient.setQueryData(['teacher', 'assessment', id], (old: any) => {
+          if (!old) return old;
+          const next = { ...old };
+          next.questions = Array.isArray(next.questions) ? [...next.questions, created] : [created];
+          return next;
+        });
+      }
       toast.success('Question added');
       queryClient.invalidateQueries({ queryKey: ['teacher', 'assessment', id] });
       closeModal();

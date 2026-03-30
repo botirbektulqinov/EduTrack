@@ -42,7 +42,13 @@ const editSchema = z.object({
   shuffle_questions: z.boolean(),
   shuffle_options: z.boolean(),
   max_violations: z.coerce.number().int().min(0),
+  time_penalty_minutes: z.coerce.number().int().min(0),
   enforce_fullscreen: z.boolean(),
+  block_keyboard_shortcuts: z.boolean(),
+  tab_switch_detection: z.boolean(),
+  dev_tools_detection: z.boolean(),
+  right_click_block: z.boolean(),
+  copy_paste_block: z.boolean(),
 });
 
 type EditForm = z.infer<typeof editSchema>;
@@ -93,7 +99,13 @@ export default function TeacherAssessmentDetailPage() {
           shuffle_questions: assessment.shuffle_questions,
           shuffle_options: assessment.shuffle_options,
           max_violations: assessment.max_violations,
+          time_penalty_minutes: assessment.time_penalty_minutes ?? 2,
           enforce_fullscreen: assessment.enforce_fullscreen,
+          block_keyboard_shortcuts: (assessment as any).block_keyboard_shortcuts ?? true,
+          tab_switch_detection: (assessment as any).tab_switch_detection ?? true,
+          dev_tools_detection: (assessment as any).dev_tools_detection ?? true,
+          right_click_block: (assessment as any).right_click_block ?? true,
+          copy_paste_block: (assessment as any).copy_paste_block ?? true,
         }
       : undefined,
   });
@@ -302,6 +314,12 @@ export default function TeacherAssessmentDetailPage() {
                 error={errors.max_violations?.message}
               />
               <Input
+                label="Time Penalty (minutes)"
+                type="number"
+                {...register('time_penalty_minutes')}
+                error={errors.time_penalty_minutes?.message}
+              />
+              <Input
                 label="Available From"
                 type="datetime-local"
                 {...register('available_from')}
@@ -328,6 +346,26 @@ export default function TeacherAssessmentDetailPage() {
               <label>
                 <input type="checkbox" {...register('enforce_fullscreen')} />
                 Enforce Fullscreen
+              </label>
+              <label>
+                <input type="checkbox" {...register('block_keyboard_shortcuts')} />
+                Block Keyboard Shortcuts
+              </label>
+              <label>
+                <input type="checkbox" {...register('tab_switch_detection')} />
+                Detect Tab Switching
+              </label>
+              <label>
+                <input type="checkbox" {...register('dev_tools_detection')} />
+                Detect DevTools
+              </label>
+              <label>
+                <input type="checkbox" {...register('right_click_block')} />
+                Block Right-Click
+              </label>
+              <label>
+                <input type="checkbox" {...register('copy_paste_block')} />
+                Block Copy/Paste
               </label>
             </div>
             <div className={styles.formActions}>
@@ -380,6 +418,10 @@ export default function TeacherAssessmentDetailPage() {
               <span className={styles.infoValue}>{assessment.max_violations}</span>
             </div>
             <div className={styles.infoItem}>
+              <span className={styles.infoLabel}>Time Penalty</span>
+              <span className={styles.infoValue}>{assessment.time_penalty_minutes ? `${assessment.time_penalty_minutes} min` : '—'}</span>
+            </div>
+            <div className={styles.infoItem}>
               <span className={styles.infoLabel}>Available From</span>
               <span className={styles.infoValue}>
                 {assessment.available_from ? formatDateTime(assessment.available_from) : '—'}
@@ -402,6 +444,26 @@ export default function TeacherAssessmentDetailPage() {
             <div className={styles.infoItem}>
               <span className={styles.infoLabel}>Enforce Fullscreen</span>
               <span className={styles.infoValue}>{assessment.enforce_fullscreen ? 'Yes' : 'No'}</span>
+            </div>
+            <div className={styles.infoItem}>
+              <span className={styles.infoLabel}>Block Keyboard Shortcuts</span>
+              <span className={styles.infoValue}>{(assessment as any).block_keyboard_shortcuts ? 'Yes' : 'No'}</span>
+            </div>
+            <div className={styles.infoItem}>
+              <span className={styles.infoLabel}>Detect Tab Switching</span>
+              <span className={styles.infoValue}>{(assessment as any).tab_switch_detection ? 'Yes' : 'No'}</span>
+            </div>
+            <div className={styles.infoItem}>
+              <span className={styles.infoLabel}>Detect DevTools</span>
+              <span className={styles.infoValue}>{(assessment as any).dev_tools_detection ? 'Yes' : 'No'}</span>
+            </div>
+            <div className={styles.infoItem}>
+              <span className={styles.infoLabel}>Block Right-Click</span>
+              <span className={styles.infoValue}>{(assessment as any).right_click_block ? 'Yes' : 'No'}</span>
+            </div>
+            <div className={styles.infoItem}>
+              <span className={styles.infoLabel}>Block Copy/Paste</span>
+              <span className={styles.infoValue}>{(assessment as any).copy_paste_block ? 'Yes' : 'No'}</span>
             </div>
             <div className={styles.infoItem}>
               <span className={styles.infoLabel}>Score Release</span>

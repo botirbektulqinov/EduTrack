@@ -29,7 +29,13 @@ const createSchema = z.object({
   shuffle_questions: z.boolean().default(false),
   shuffle_options: z.boolean().default(false),
   max_violations: z.coerce.number().int().min(0).default(3),
+  time_penalty_minutes: z.coerce.number().int().min(0).default(2),
   enforce_fullscreen: z.boolean().default(true),
+  block_keyboard_shortcuts: z.boolean().default(true),
+  tab_switch_detection: z.boolean().default(true),
+  dev_tools_detection: z.boolean().default(true),
+  right_click_block: z.boolean().default(true),
+  copy_paste_block: z.boolean().default(true),
 });
 
 type CreateForm = z.infer<typeof createSchema>;
@@ -72,7 +78,13 @@ export default function TeacherAssessmentCreatePage() {
       shuffle_questions: false,
       shuffle_options: false,
       max_violations: 3,
+      time_penalty_minutes: 2,
       enforce_fullscreen: true,
+      block_keyboard_shortcuts: true,
+      tab_switch_detection: true,
+      dev_tools_detection: true,
+      right_click_block: true,
+      copy_paste_block: true,
     },
   });
 
@@ -163,6 +175,12 @@ export default function TeacherAssessmentCreatePage() {
               {...register('max_violations')}
               error={errors.max_violations?.message}
             />
+              <Input
+                label="Time Penalty (minutes)"
+                type="number"
+                {...register('time_penalty_minutes')}
+                error={errors.time_penalty_minutes?.message}
+              />
           </div>
 
           <Textarea
@@ -183,6 +201,26 @@ export default function TeacherAssessmentCreatePage() {
             <label>
               <input type="checkbox" {...register('enforce_fullscreen')} />
               Enforce Fullscreen
+            </label>
+            <label>
+              <input type="checkbox" {...register('block_keyboard_shortcuts')} />
+              Block Keyboard Shortcuts
+            </label>
+            <label>
+              <input type="checkbox" {...register('tab_switch_detection')} />
+              Detect Tab Switching
+            </label>
+            <label>
+              <input type="checkbox" {...register('dev_tools_detection')} />
+              Detect DevTools
+            </label>
+            <label>
+              <input type="checkbox" {...register('right_click_block')} />
+              Block Right-Click
+            </label>
+            <label>
+              <input type="checkbox" {...register('copy_paste_block')} />
+              Block Copy/Paste
             </label>
           </div>
 

@@ -1,0 +1,23 @@
+.page {
+  padding: 1rem;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table th, .table td {
+  padding: 0.5rem;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+.center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}

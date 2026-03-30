@@ -147,6 +147,151 @@ class AnalyticsService:
 
         return breakdown
 
+    @staticmethod
+    async def get_student_semester_performance(db: AsyncSession, student_id: UUID, teacher_id: UUID, semester: Optional[str] = None) -> dict:
+        """Dashboard data for a student, filtered by semester, accessible only if taught by teacher."""
+        # 1. Get all enrollments for the student
+        enrollments = (await db.execute(
+            select(GroupEnrollment.group_id).where(GroupEnrollment.student_id == student_id)
+        )).scalars().all()
+
+        if not enrollments:
+            return AnalyticsService._empty_student_dashboard()
+
+        # 2. Get the groups
+        groups_result = await db.execute(select(Group).where(Group.id.in_(enrollments)))
+        groups = groups_result.scalars().all()
+
+        if not groups:
+            return AnalyticsService._empty_student_dashboard()
+
+        if not semester:
+            # Infer the latest semester
+            sorted_groups = sorted([g for g in groups if g.semester], key=lambda g: hasattr(g, 'created_at') and g.created_at or 0, reverse=True)
+            if not sorted_groups:
+                return AnalyticsService._empty_student_dashboard()
+            semester = sorted_groups[0].semester
+
+        # Filter groups by the chosen semester
+        semester_groups = [g for g in groups if g.semester == semester]
+        if not semester_groups:
+            return AnalyticsService._empty_student_dashboard()
+
+        # 3. Check teacher authorization
+        if teacher_id:
+            is_authorized = any(g.teacher_id == teacher_id for g in semester_groups)
+            if not is_authorized:
+                return AnalyticsService._empty_student_dashboard()
+
+        # 4. Filter strictly for assessments linked to `semester_groups`
+        semester_group_ids = [g.id for g in semester_groups]
+        assessment_ids = (await db.execute(
+            select(Assessment.id).where(Assessment.group_id.in_(semester_group_ids))
+        )).scalars().all()
+
+        if not assessment_ids:
+            return AnalyticsService._empty_student_dashboard()
+
+        # 5. Fetch attempts
+        result = await db.execute(
+            select(AssessmentAttempt)
+            .where(
+                AssessmentAttempt.student_id == student_id,
+                AssessmentAttempt.assessment_id.in_(assessment_ids),
+                AssessmentAttempt.status.in_(["submitted", "graded"])
+            )
+            .order_by(AssessmentAttempt.submitted_at)
+        )
+        attempts = result.scalars().all()
+
+        scores = [a.score_percent for a in attempts if a.score_percent is not None]
+        passing = [s for s in scores if s >= 50]
+
+        # Violation count
+        violation_count = (await db.execute(
+            select(func.count(Violation.id)).where(
+                Violation.student_id == student_id,
+                Violation.assessment_id.in_(assessment_ids)
+            )
+        )).scalar() or 0
+
+        # Score trend
+        score_trend = []
+        for a in attempts:
+            if a.score_percent is not None and a.submitted_at:
+                score_trend.append({
+                    "date": a.submitted_at.isoformat(),
+                    "score": a.score_percent,
+                    "assessment_id": str(a.assessment_id),
+                })
+
+        # Streak
+        streak = 0
+        for s in reversed(scores):
+            if s >= 50:
+                streak += 1
+            else:
+                break
+
+        # Improvement rate
+        improvement_rate = None
+        if len(scores) >= 2:
+            n = len(scores)
+            x_mean = (n - 1) / 2
+            y_mean = sum(scores) / n
+            numerator = sum((i - x_mean) * (s - y_mean) for i, s in enumerate(scores))
+            denominator = sum((i - x_mean) ** 2 for i in range(n))
+            if denominator > 0:
+                improvement_rate = round(numerator / denominator, 3)
+
+        # Subject scores
+        subject_scores = []
+        for g in semester_groups:
+            group_assessment_ids = (await db.execute(select(Assessment.id).where(Assessment.group_id == g.id))).scalars().all()
+            if not group_assessment_ids:
+                continue
+            group_scores = [a.score_percent for a in attempts if a.assessment_id in group_assessment_ids and a.score_percent is not None]
+            group_passing = [s for s in group_scores if s >= 50]
+            if group_scores:
+                subject_scores.append({
+                    "group_id": str(g.id),
+                    "group_name": g.name,
+                    "subject": g.subject or g.name,
+                    "assessments_taken": len(group_scores),
+                    "average_score": round(sum(group_scores) / len(group_scores), 2),
+                    "pass_rate": round(len(group_passing) / len(group_scores) * 100, 2),
+                })
+
+        return {
+            "overall_score_avg": round(sum(scores) / len(scores), 2) if scores else None,
+            "pass_rate": round(len(passing) / len(scores) * 100, 2) if scores else None,
+            "assessments_taken": len(attempts),
+            "assessments_passed": len(passing),
+            "streak_count": streak,
+            "improvement_rate": improvement_rate,
+            "violation_count_total": violation_count,
+            "score_trend": score_trend,
+            "subject_scores": subject_scores,
+            "weak_topics": [],
+            "recent_results": score_trend[-10:] if score_trend else [],
+        }
+
+    @staticmethod
+    def _empty_student_dashboard() -> dict:
+        return {
+            "overall_score_avg": None,
+            "pass_rate": None,
+            "assessments_taken": 0,
+            "assessments_passed": 0,
+            "streak_count": 0,
+            "improvement_rate": None,
+            "violation_count_total": 0,
+            "score_trend": [],
+            "subject_scores": [],
+            "weak_topics": [],
+            "recent_results": [],
+        }
+
     # ── Teacher Analytics ──
 
     @staticmethod

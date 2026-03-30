@@ -71,3 +71,20 @@ async def list_violations(
     violations = await ProctoringService.get_violations_for_assessment(db, assessment_id)
     from app.schemas.violation import ViolationResponse
     return SuccessResponse(data=[ViolationResponse.model_validate(v) for v in violations])
+
+
+@router.get("/students/{student_id}/semester-performance", response_model=SuccessResponse)
+async def student_semester_performance(
+    student_id: UUID,
+    semester: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    teacher: User = Depends(get_teacher_user),
+):
+    """Get semester performance dashboard for a student in the teacher's groups."""
+    data = await AnalyticsService.get_student_semester_performance(
+        db,
+        student_id=student_id,
+        teacher_id=teacher.id if teacher.role != "admin" else None,
+        semester=semester,
+    )
+    return SuccessResponse(data=data)

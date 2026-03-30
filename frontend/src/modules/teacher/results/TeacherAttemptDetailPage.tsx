@@ -155,7 +155,13 @@ export default function TeacherAttemptDetailPage() {
           <div>
             <span className={styles.infoLabel}>Student</span>
             <span className={styles.infoValue}>
-              {attempt.student_name ?? attempt.student_id}
+              <Link
+                to={`/teacher/students/${attempt.student_id}/semester-performance`}
+                style={{ color: '#4f46e5', textDecoration: 'underline' }}
+                title="View Student Semester Performance"
+              >
+                {attempt.student_name ?? attempt.student_id}
+              </Link>
             </span>
           </div>
           <div>

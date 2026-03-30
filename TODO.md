@@ -83,3 +83,11 @@ After it there was, Admin analytics + reports
 Teacher assessments + questions
 Teacher results + analytics
 Student take + proctoring SDK
+
+
+----
+
+
+New tasks.
+
+Teachers should be able to see how well a student performed in a semester. They should be able to see full performance of the student over whole semester.

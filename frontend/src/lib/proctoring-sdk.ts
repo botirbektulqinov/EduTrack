@@ -43,6 +43,9 @@ export class ProctoringSDK {
   private mutationObserver: MutationObserver | null = null;
   private devToolsInterval: ReturnType<typeof setInterval> | null = null;
   private active = false;
+  // recent events map for simple deduplication (ms)
+  private recentEvents: Map<string, number> = new Map();
+  private readonly DEDUPE_WINDOW_MS = 1500;
 
   constructor(config: ProctoringConfig, callbacks: {
     onViolation: (event: ViolationEvent) => void;
@@ -92,6 +95,13 @@ export class ProctoringSDK {
 
   private triggerViolation(type: ViolationType): void {
     if (!this.active) return;
+    const now = Date.now();
+    const last = this.recentEvents.get(type) ?? 0;
+    if (now - last < this.DEDUPE_WINDOW_MS) {
+      return; // ignore duplicate rapid events of same type
+    }
+    this.recentEvents.set(type, now);
+
     this.violationCount++;
     const event: ViolationEvent = {
       type,
@@ -102,6 +112,12 @@ export class ProctoringSDK {
     if (this.violationCount >= this.maxViolations) {
       this.onTerminate();
     }
+  }
+
+  // Exposed for debugging / repro: simulate a violation programmatically
+  simulateViolation(type: ViolationType): void {
+    // reuse existing logic (will respect dedupe window)
+    this.triggerViolation(type);
   }
 
   /* ── Fullscreen ── */

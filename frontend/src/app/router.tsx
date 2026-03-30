@@ -25,6 +25,8 @@ import TeacherQuestionsPage from '@/modules/teacher/questions/TeacherQuestionsPa
 import TeacherResultsPage from '@/modules/teacher/results/TeacherResultsPage';
 import TeacherAttemptDetailPage from '@/modules/teacher/results/TeacherAttemptDetailPage';
 import TeacherDashboardPage from '@/modules/teacher/analytics/TeacherDashboardPage';
+import TeacherStudentSemesterPerformancePage from '@/modules/teacher/analytics/TeacherStudentSemesterPerformancePage';
+import TeacherLeaderboardsPage from '@/modules/teacher/analytics/TeacherLeaderboardsPage';
 
 /* Student Pages */
 import StudentDashboardPage from '@/modules/student/dashboard/StudentDashboardPage';
@@ -81,6 +83,8 @@ export const router = createBrowserRouter([
     children: [
       { path: '/teacher', element: <Navigate to="/teacher/dashboard" replace /> },
       { path: '/teacher/dashboard', element: <TeacherDashboardPage /> },
+      { path: '/teacher/students/:id/semester-performance', element: <TeacherStudentSemesterPerformancePage /> },
+      { path: '/teacher/leaderboards', element: <TeacherLeaderboardsPage /> },
       { path: '/teacher/assessments', element: <TeacherAssessmentsPage /> },
       { path: '/teacher/assessments/new', element: <TeacherAssessmentCreatePage /> },
       { path: '/teacher/assessments/:id', element: <TeacherAssessmentDetailPage /> },

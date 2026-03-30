@@ -25,9 +25,27 @@ export function useProctoring({
     sdkRef.current = sdk;
     sdk.init();
 
+    // expose simple debug helper for local repro: window.__EDUTRACK_PROCTORING.simulateViolation(type)
+    try {
+      (window as any).__EDUTRACK_PROCTORING = (window as any).__EDUTRACK_PROCTORING ?? {};
+      (window as any).__EDUTRACK_PROCTORING.simulateViolation = (type: string) => {
+        // allow calling with string names from console
+        if (sdkRef.current && typeof (sdkRef.current as any).simulateViolation === 'function') {
+          (sdkRef.current as any).simulateViolation(type);
+        }
+      };
+    } catch (err) {
+      // ignore in restricted environments
+    }
+
     return () => {
       sdk.destroy();
       sdkRef.current = null;
+      try {
+        if ((window as any).__EDUTRACK_PROCTORING) delete (window as any).__EDUTRACK_PROCTORING.simulateViolation;
+      } catch (e) {
+        /* ignore */
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);

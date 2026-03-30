@@ -39,6 +39,7 @@ export default function AssessmentTakePage() {
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [flagged, setFlagged] = useState<Set<string>>(new Set());
   const [violationCount, setViolationCount] = useState(0);
+  const [violationWarning, setViolationWarning] = useState<{ open: boolean; count?: number; message?: string }>({ open: false });
 
   const answersRef = useRef(answers);
   answersRef.current = answers;
@@ -215,7 +216,22 @@ export default function AssessmentTakePage() {
     (event: ViolationEvent) => {
       setViolationCount(event.count);
       deductTime((assessment?.time_penalty_minutes ?? 2) * 60);
-      toast.error(`Violation ${event.count}/${proctoringConfig.maxViolations}: ${event.type.replace(/_/g, ' ')}`);
+
+      // Debounce duplicate toast messages for the same violation type
+      const key = `violation:${event.type}:${event.count}`;
+      // store recent toast timestamps in a ref-like closure (module-scope simple cache)
+      (handleViolation as any)._recentToasts = (handleViolation as any)._recentToasts ?? {};
+      const recent = (handleViolation as any)._recentToasts as Record<string, number>;
+      const now = Date.now();
+      if (!recent[key] || now - recent[key] > 1500) {
+        recent[key] = now;
+        const remaining = Math.max(0, proctoringConfig.maxViolations - event.count);
+        toast.error(
+          `Violation ${event.count}/${proctoringConfig.maxViolations}: ${event.type.replace(/_/g, ' ')}${
+            remaining > 0 ? ` — ${remaining} warning(s) remaining` : ''
+          }`,
+        );
+      }
 
       // Report to server via WebSocket
       wsSend({
@@ -223,6 +239,15 @@ export default function AssessmentTakePage() {
         violation_type: event.type,
         time_remaining: remaining,
       });
+
+      // Show an on-screen warning for non-final violations
+      if (event.count < proctoringConfig.maxViolations) {
+        setViolationWarning({
+          open: true,
+          count: event.count,
+          message: `Warning ${event.count} of ${proctoringConfig.maxViolations}: ${event.type.replace(/_/g, ' ')}`,
+        });
+      }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [assessment, remaining],
@@ -237,20 +262,32 @@ export default function AssessmentTakePage() {
     config: proctoringConfig,
     onViolation: handleViolation,
     onTerminate: handleTerminate,
-    enabled: phase === 'active' && (assessment?.enforce_fullscreen ?? true),
+    // Ensure proctoring detectors run while the assessment is active.
+    // The SDK will selectively attach listeners based on the config flags
+    // (e.g. `enforceFullscreen`) so we only gate on the active phase here.
+    enabled: phase === 'active',
   });
 
   /* ── WebSocket ── */
+  // Safe submit helper to prevent duplicate submissions / toasts
+  const safeSubmit = useCallback(() => {
+    if (submitMutation.isPending || phase === 'submitted' || phase === 'terminated') return;
+    submitMutation.mutate();
+  }, [submitMutation, phase]);
+
   const handleWSMessage = useCallback(
     (msg: WSServerMessage) => {
       switch (msg.type) {
         case 'TIME_UPDATE':
           syncTime(msg.time_remaining);
           break;
-        case 'TIME_PENALTY':
+        case 'TIME_PENALTY': {
           deductTime(msg.deducted);
-          toast.error(`Time penalty: -${Math.floor(msg.deducted / 60)} min`);
+          const mins = Math.floor(msg.deducted / 60);
+          const sign = mins > 0 ? '-' : '';
+          toast.error(`Time penalty: ${sign}${mins} min`);
           break;
+        }
         case 'WARNING':
           toast.error(msg.message);
           setViolationCount(msg.count);
@@ -260,7 +297,7 @@ export default function AssessmentTakePage() {
           toast.error(msg.reason);
           break;
         case 'FORCE_SUBMIT':
-          submitMutation.mutate();
+          safeSubmit();
           break;
         case 'ASSESSMENT_DEACTIVATED':
           setPhase('terminated');
@@ -269,7 +306,7 @@ export default function AssessmentTakePage() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [syncTime, deductTime],
+    [syncTime, deductTime, safeSubmit],
   );
 
   const { send: wsSend, connected: wsConnected } = useWebSocket({
@@ -323,7 +360,7 @@ export default function AssessmentTakePage() {
 
   const confirmSubmit = () => {
     setSubmitConfirm({ open: false, message: '' });
-    saveAnswers().then(() => submitMutation.mutate());
+    saveAnswers().then(() => safeSubmit());
   };
 
   /* ── Current question ── */
@@ -345,9 +382,13 @@ export default function AssessmentTakePage() {
       <div className={styles.center}>
         <h2>Unable to Load Assessment</h2>
         <p>{errorMessage ?? 'This link may be invalid, expired, or you are not authorized.'}</p>
-        <Button variant="primary" onClick={() => navigate('/student/dashboard')}>
-          Go to Dashboard
-        </Button>
+        <p>If you believe you should have access, contact your teacher or administrator.</p>
+        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <Button variant="primary" onClick={() => navigate('/student/dashboard')}>
+            Go to Dashboard
+          </Button>
+          <Button variant="ghost" onClick={() => window.location.assign('mailto:support@edutrack.example.com')}>Contact Support</Button>
+        </div>
       </div>
     );
   }
@@ -414,6 +455,24 @@ export default function AssessmentTakePage() {
   /* ── Active assessment ── */
   return (
     <div className={styles.assessmentShell}>
+      {/* Blocking overlay for proctoring warnings (pre-final and final) */}
+      {violationWarning.open && (
+        <div
+          className={styles.violationOverlay}
+          data-final={violationWarning.count === (proctoringConfig.maxViolations - 1)}
+          role="alert"
+        >
+          <div className={styles.violationBox}>
+            <h2>{violationWarning.count === (proctoringConfig.maxViolations - 1) ? 'Final Warning' : 'Proctoring Warning'}</h2>
+            <p>{violationWarning.message ?? 'A proctoring rule was violated.'}</p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <Button variant="danger" onClick={() => setViolationWarning({ open: false })}>
+                Acknowledge
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Top bar */}
       <header className={styles.topBar}>
         <div className={styles.topLeft}>
@@ -436,6 +495,43 @@ export default function AssessmentTakePage() {
           </Button>
         </div>
       </header>
+
+      {/* Dev repro helpers (vite dev only) */}
+      {import.meta.env.DEV && (
+        <div style={{ padding: 8, display: 'flex', gap: 8 }}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => (window as any).__EDUTRACK_PROCTORING?.simulateViolation('FULLSCREEN_EXIT')}
+          >
+            Simulate Fullscreen Exit
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => (window as any).__EDUTRACK_PROCTORING?.simulateViolation('TAB_SWITCH')}
+          >
+            Simulate Tab Switch
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => (window as any).__EDUTRACK_PROCTORING?.simulateViolation('DEVTOOLS_DETECTED')}
+          >
+            Simulate DevTools
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              const seq = ['TAB_SWITCH', 'FULLSCREEN_EXIT', 'DEVTOOLS_DETECTED'];
+              seq.forEach((t, i) => setTimeout(() => (window as any).__EDUTRACK_PROCTORING?.simulateViolation(t), i * 600));
+            }}
+          >
+            Simulate Sequence
+          </Button>
+        </div>
+      )}
 
       {/* Main content */}
       <div className={styles.mainArea}>
@@ -522,6 +618,16 @@ export default function AssessmentTakePage() {
         message={submitConfirm.message}
         confirmLabel="Submit"
         variant="primary"
+      />
+
+      <ConfirmModal
+        isOpen={violationWarning.open}
+        onClose={() => setViolationWarning({ open: false })}
+        onConfirm={() => setViolationWarning({ open: false })}
+        title="Proctoring Warning"
+        message={violationWarning.message ?? 'A proctoring rule was violated.'}
+        confirmLabel="OK"
+        variant="danger"
       />
     </div>
   );

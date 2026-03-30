@@ -139,7 +139,19 @@ export default function TeacherResultsPage() {
               className={styles.row}
               onClick={() => navigate(`/teacher/attempts/${a.id}`)}
             >
-              <td>{a.student_name ?? a.student_id}</td>
+              <td>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>{a.student_name ?? a.student_id}</span>
+                  <Link
+                    to={`/teacher/students/${a.student_id}/semester-performance`}
+                    onClick={(e) => e.stopPropagation()}
+                    title="View Student Semester Performance"
+                    style={{ color: '#4f46e5', textDecoration: 'underline', fontSize: '0.85em' }}
+                  >
+                    Profile
+                  </Link>
+                </div>
+              </td>
               <td>
                 <Badge variant={STATUS_VARIANT[a.status] ?? 'neutral'}>
                   {a.status.replace('_', ' ')}
