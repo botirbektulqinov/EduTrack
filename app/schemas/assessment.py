@@ -29,6 +29,7 @@ class AssessmentCreate(BaseModel):
     assessment_type: str  # test, quiz, survey, practice
     format_type: str = "timed_test"
     group_id: Optional[UUID] = None
+    subject_id: Optional[UUID] = None
     time_limit_minutes: Optional[int] = None
     available_from: Optional[datetime] = None
     available_until: Optional[datetime] = None
@@ -49,6 +50,7 @@ class AssessmentUpdate(BaseModel):
     assessment_type: Optional[str] = None
     format_type: Optional[str] = None
     group_id: Optional[UUID] = None
+    subject_id: Optional[UUID] = None
     time_limit_minutes: Optional[int] = None
     available_from: Optional[datetime] = None
     available_until: Optional[datetime] = None
@@ -69,6 +71,10 @@ class AssessmentResponse(BaseModel):
     format_type: str
     group_id: Optional[UUID]
     group_name: Optional[str] = None
+    subject_id: Optional[UUID] = None
+    subject_name: Optional[str] = None
+    group_subject_id: Optional[UUID] = None
+    group_subject_name: Optional[str] = None
     teacher_id: Optional[UUID]
     time_limit_minutes: Optional[int]
     available_from: Optional[datetime]
@@ -83,6 +89,12 @@ class AssessmentResponse(BaseModel):
     enforce_fullscreen: bool
     max_violations: int
     time_penalty_minutes: int
+    block_keyboard_shortcuts: bool
+    tab_switch_detection: bool
+    devtools_detection: bool
+    right_click_block: bool
+    copy_paste_block: bool
+    webcam_proctoring: bool
     access_token: UUID
     is_published: bool
     is_active: bool
@@ -100,6 +112,10 @@ class AssessmentListResponse(BaseModel):
     assessment_type: str
     group_id: Optional[UUID]
     group_name: Optional[str] = None
+    subject_id: Optional[UUID] = None
+    subject_name: Optional[str] = None
+    group_subject_id: Optional[UUID] = None
+    group_subject_name: Optional[str] = None
     time_limit_minutes: Optional[int] = None
     is_published: bool
     is_active: bool

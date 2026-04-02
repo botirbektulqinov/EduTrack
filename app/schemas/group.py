@@ -12,6 +12,7 @@ from pydantic import BaseModel
 class GroupBase(BaseModel):
     name: str
     subject: Optional[str] = None
+    subject_id: Optional[UUID] = None
     academic_year: Optional[str] = None
     semester: Optional[str] = None
     description: Optional[str] = None
@@ -34,6 +35,7 @@ class GroupUpdate(BaseModel):
 class GroupResponse(GroupBase):
     id: UUID
     teacher_id: Optional[UUID] = None
+    subject_name: Optional[str] = None
     is_archived: bool
     created_at: datetime
     updated_at: datetime
@@ -54,6 +56,8 @@ class GroupListResponse(BaseModel):
     id: UUID
     name: str
     subject: Optional[str] = None
+    subject_id: Optional[UUID] = None
+    subject_name: Optional[str] = None
     academic_year: Optional[str] = None
     semester: Optional[str] = None
     is_archived: bool

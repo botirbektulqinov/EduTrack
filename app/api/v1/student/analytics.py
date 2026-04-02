@@ -32,6 +32,25 @@ async def student_dashboard(
     return SuccessResponse(data=data)
 
 
+@router.get("/review", response_model=SuccessResponse)
+async def student_review(
+    period: str = "semester",
+    academic_year: str | None = None,
+    semester: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    student: User = Depends(get_student_user),
+):
+    """Detailed student review with semester/year filters and peer comparisons."""
+    data = await AnalyticsService.get_student_review(
+        db,
+        student.id,
+        period=period,
+        academic_year=academic_year,
+        semester=semester,
+    )
+    return SuccessResponse(data=data)
+
+
 @router.get("/available-assessments", response_model=SuccessResponse)
 async def available_assessments(
     db: AsyncSession = Depends(get_db),

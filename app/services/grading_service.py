@@ -1,12 +1,15 @@
 """
-EduTrack — Grading Service
-Auto-grading engine for all 16 question types.
+EduTrack - Grading Service
+Auto-grading engine for all supported question types.
 """
 
+import json
 import math
 import re
-from typing import Any, Dict, List, Optional
-from uuid import UUID
+import subprocess
+import sys
+import textwrap
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,8 +17,64 @@ from sqlalchemy.orm import selectinload
 
 from app.models.assessment_attempt import AssessmentAttempt
 from app.models.question import Question
-from app.models.question_option import QuestionOption
 from app.models.student_answer import StudentAnswer
+
+
+PYTHON_CODE_RUNNER = textwrap.dedent(
+    """
+    import contextlib
+    import io
+    import json
+    import sys
+    import traceback
+
+    payload = json.loads(sys.stdin.read())
+    namespace = {"__name__": "__main__"}
+    stdout_buffer = io.StringIO()
+    stderr_buffer = io.StringIO()
+
+    try:
+        code = payload.get("code", "")
+        execution_mode = payload.get("execution_mode", "stdin_stdout")
+
+        with contextlib.redirect_stdout(stdout_buffer), contextlib.redirect_stderr(stderr_buffer):
+            if execution_mode == "function":
+                exec(code, namespace)
+                function_name = payload.get("function_name") or "solve"
+                target = namespace.get(function_name)
+                if not callable(target):
+                    raise RuntimeError(f"Function '{function_name}' was not found.")
+                result = target(payload.get("input", ""))
+                if result is not None:
+                    print(result)
+            else:
+                original_stdin = sys.stdin
+                sys.stdin = io.StringIO(payload.get("input", ""))
+                try:
+                    exec(code, namespace)
+                finally:
+                    sys.stdin = original_stdin
+
+        json.dump(
+            {
+                "ok": True,
+                "stdout": stdout_buffer.getvalue(),
+                "stderr": stderr_buffer.getvalue(),
+            },
+            sys.stdout,
+        )
+    except Exception:
+        json.dump(
+            {
+                "ok": False,
+                "stdout": stdout_buffer.getvalue(),
+                "stderr": stderr_buffer.getvalue(),
+                "error": traceback.format_exc(limit=3),
+            },
+            sys.stdout,
+        )
+    """
+)
 
 
 class QuestionResult:
@@ -27,12 +86,8 @@ class QuestionResult:
 
 
 class GradingService:
-
     async def grade_attempt(self, db: AsyncSession, attempt: AssessmentAttempt) -> dict:
-        """
-        Grade all answers in an attempt. Returns summary.
-        """
-        # Load answers with questions
+        """Grade all answers in an attempt and return a summary."""
         result = await db.execute(
             select(StudentAnswer)
             .options(selectinload(StudentAnswer.question).selectinload(Question.options))
@@ -48,27 +103,22 @@ class GradingService:
             question = answer.question
             total_points += question.points
 
-            qr = self._auto_grade(question, answer)
-            answer.score_awarded = qr.score
-            answer.auto_graded = qr.auto_graded
+            question_result = self._auto_grade(question, answer)
+            answer.score_awarded = question_result.score
+            answer.auto_graded = question_result.auto_graded
 
-            if qr.feedback:
-                answer.teacher_feedback = qr.feedback
+            if question_result.feedback:
+                answer.teacher_feedback = question_result.feedback
 
-            if not qr.auto_graded:
+            if not question_result.auto_graded:
                 needs_manual_review = True
 
-            earned_points += qr.score
+            earned_points += question_result.score
 
-        # Update attempt scores
         attempt.score_raw = earned_points
         attempt.score_percent = (earned_points / total_points * 100) if total_points > 0 else 0
         attempt.grade = self._compute_grade(attempt.score_percent or 0)
-
-        if needs_manual_review:
-            attempt.status = "grading"
-        else:
-            attempt.status = "graded"
+        attempt.status = "grading" if needs_manual_review else "graded"
 
         await db.flush()
 
@@ -80,14 +130,82 @@ class GradingService:
             "needs_manual_review": needs_manual_review,
         }
 
+    def run_code_preview(self, question: Question, code_submission: str) -> dict[str, Any]:
+        config = question.config or {}
+        language = str(config.get("language", "python")).lower().strip()
+        execution_mode = str(config.get("execution_mode", "stdin_stdout"))
+        function_name = str(config.get("function_name", "solve"))
+
+        if language not in {"python", "py"}:
+            raise ValueError("Code preview is currently available only for Python questions.")
+
+        visible_test_cases = [
+            test_case
+            for test_case in self._get_code_test_cases(config)
+            if not bool(test_case.get("is_hidden", False))
+        ]
+        if not visible_test_cases:
+            raise ValueError("No visible test cases are available for this question.")
+
+        timeout_seconds = self._bounded_int(
+            config.get("time_limit_seconds"),
+            default=2,
+            minimum=1,
+            maximum=10,
+        )
+        case_results = []
+        passed_cases = 0
+
+        for index, test_case in enumerate(visible_test_cases, start=1):
+            run_result = self._run_python_code_submission(
+                code=code_submission,
+                stdin_data=str(test_case.get("input", "")),
+                execution_mode=execution_mode,
+                function_name=function_name,
+                timeout_seconds=timeout_seconds,
+            )
+            expected_output = self._normalize_code_output(test_case.get("output", ""))
+            actual_output = self._normalize_code_output(run_result.get("stdout", ""))
+            passed = bool(run_result.get("ok")) and actual_output == expected_output
+
+            if passed:
+                passed_cases += 1
+
+            case_results.append({
+                "index": index,
+                "input": str(test_case.get("input", "")),
+                "expected_output": expected_output,
+                "actual_output": actual_output,
+                "passed": passed,
+                "error": run_result.get("error"),
+            })
+
+        return {
+            "language": language,
+            "execution_mode": execution_mode,
+            "passed_cases": passed_cases,
+            "total_cases": len(visible_test_cases),
+            "feedback": self._build_code_feedback([
+                {
+                    "index": case["index"],
+                    "is_hidden": False,
+                    "passed": case["passed"],
+                    "expected": case["expected_output"],
+                    "actual": case["actual_output"],
+                    "error": case["error"],
+                }
+                for case in case_results
+            ]),
+            "cases": case_results,
+        }
+
     def _auto_grade(self, question: Question, answer: StudentAnswer) -> QuestionResult:
-        """Route to the appropriate grader based on question type."""
         graders = {
             "true_false": self._grade_true_false,
-            "yes_no": self._grade_true_false,         # Same logic
+            "yes_no": self._grade_true_false,
             "mcq_single": self._grade_mcq_single,
             "mcq_multi": self._grade_mcq_multi,
-            "image_mcq": self._grade_mcq_single,      # Same as MCQ single
+            "image_mcq": self._grade_mcq_single,
             "short_answer": self._grade_short_answer,
             "essay": self._grade_essay,
             "fill_blank": self._grade_fill_blank,
@@ -104,43 +222,38 @@ class GradingService:
         grader = graders.get(question.question_type, self._grade_manual)
         return grader(question, answer)
 
-    # ── Individual Graders ──
-
     def _grade_true_false(self, question: Question, answer: StudentAnswer) -> QuestionResult:
-        """TYPE-01/02: True/False, Yes/No"""
         if not answer.selected_option_ids:
             return QuestionResult(0, question.points)
 
         correct_ids = {str(opt.id) for opt in question.options if opt.is_correct}
-        selected = {str(oid) for oid in answer.selected_option_ids}
+        selected = {str(option_id) for option_id in answer.selected_option_ids}
 
         if selected == correct_ids:
             return QuestionResult(question.points, question.points, feedback="Correct!")
-        else:
-            penalty = question.negative_marking if question.negative_marking else 0
-            return QuestionResult(-penalty, question.points, feedback="Incorrect.")
+
+        penalty = question.negative_marking if question.negative_marking else 0
+        return QuestionResult(-penalty, question.points, feedback="Incorrect.")
 
     def _grade_mcq_single(self, question: Question, answer: StudentAnswer) -> QuestionResult:
-        """TYPE-03/05: Single-answer MCQ"""
         if not answer.selected_option_ids:
             return QuestionResult(0, question.points)
 
         correct_ids = {str(opt.id) for opt in question.options if opt.is_correct}
-        selected = {str(oid) for oid in answer.selected_option_ids}
+        selected = {str(option_id) for option_id in answer.selected_option_ids}
 
         if selected == correct_ids:
             return QuestionResult(question.points, question.points, feedback="Correct!")
-        else:
-            penalty = question.negative_marking if question.negative_marking else 0
-            return QuestionResult(-penalty, question.points, feedback="Incorrect.")
+
+        penalty = question.negative_marking if question.negative_marking else 0
+        return QuestionResult(-penalty, question.points, feedback="Incorrect.")
 
     def _grade_mcq_multi(self, question: Question, answer: StudentAnswer) -> QuestionResult:
-        """TYPE-04: Multiple-answer MCQ with partial scoring."""
         if not answer.selected_option_ids:
             return QuestionResult(0, question.points)
 
         correct_ids = {str(opt.id) for opt in question.options if opt.is_correct}
-        selected = {str(oid) for oid in answer.selected_option_ids}
+        selected = {str(option_id) for option_id in answer.selected_option_ids}
         total_correct = len(correct_ids)
 
         if total_correct == 0:
@@ -150,19 +263,15 @@ class GradingService:
         incorrect_selected = len(selected - correct_ids)
 
         if question.partial_scoring:
-            # Partial: (correct_selected - incorrect_selected) / total_correct, floor 0
             raw = (correct_selected - incorrect_selected) / total_correct
             score = max(0, raw) * question.points
             return QuestionResult(score, question.points)
-        else:
-            # Strict: full marks only if exact match
-            if selected == correct_ids:
-                return QuestionResult(question.points, question.points, feedback="Correct!")
-            else:
-                return QuestionResult(0, question.points, feedback="Incorrect.")
+
+        if selected == correct_ids:
+            return QuestionResult(question.points, question.points, feedback="Correct!")
+        return QuestionResult(0, question.points, feedback="Incorrect.")
 
     def _grade_short_answer(self, question: Question, answer: StudentAnswer) -> QuestionResult:
-        """TYPE-06: Short answer with accepted answers list."""
         if not answer.answer_text:
             return QuestionResult(0, question.points)
 
@@ -170,7 +279,6 @@ class GradingService:
         accepted_answers = config.get("accepted_answers", [])
         case_sensitive = config.get("case_sensitive", False)
         use_regex = config.get("use_regex", False)
-
         student_answer = answer.answer_text.strip()
 
         for accepted in accepted_answers:
@@ -179,30 +287,23 @@ class GradingService:
                 if re.fullmatch(accepted, student_answer, flags):
                     return QuestionResult(question.points, question.points, feedback="Correct!")
             else:
-                if case_sensitive:
-                    if student_answer == accepted.strip():
-                        return QuestionResult(question.points, question.points, feedback="Correct!")
-                else:
-                    if student_answer.lower() == accepted.strip().lower():
-                        return QuestionResult(question.points, question.points, feedback="Correct!")
+                if case_sensitive and student_answer == accepted.strip():
+                    return QuestionResult(question.points, question.points, feedback="Correct!")
+                if not case_sensitive and student_answer.lower() == accepted.strip().lower():
+                    return QuestionResult(question.points, question.points, feedback="Correct!")
 
-        # Near-match: flag for teacher review
         return QuestionResult(0, question.points, auto_graded=False, feedback="Needs manual review.")
 
     def _grade_essay(self, question: Question, answer: StudentAnswer) -> QuestionResult:
-        """TYPE-07: Essay — always manual grading."""
         return QuestionResult(0, question.points, auto_graded=False, feedback="Pending teacher review.")
 
     def _grade_fill_blank(self, question: Question, answer: StudentAnswer) -> QuestionResult:
-        """TYPE-08: Fill-in-the-blank (cloze). Multiple blanks, each graded independently."""
         config = question.config or {}
         blanks = config.get("blanks", [])
 
         if not blanks or not answer.answer_text:
             return QuestionResult(0, question.points)
 
-        # answer_text is JSON: ["answer1", "answer2", ...]
-        import json
         try:
             student_answers = json.loads(answer.answer_text)
         except (json.JSONDecodeError, TypeError):
@@ -211,27 +312,25 @@ class GradingService:
         points_per_blank = question.points / len(blanks) if blanks else 0
         earned = 0.0
 
-        for i, blank in enumerate(blanks):
-            if i >= len(student_answers):
+        for index, blank in enumerate(blanks):
+            if index >= len(student_answers):
                 continue
-            student_ans = student_answers[i].strip() if student_answers[i] else ""
-            accepted = blank.get("accepted_answers", [])
+
+            student_answer = student_answers[index].strip() if student_answers[index] else ""
+            accepted_answers = blank.get("accepted_answers", [])
             case_sensitive = blank.get("case_sensitive", False)
 
-            for acc in accepted:
-                if case_sensitive:
-                    if student_ans == acc.strip():
-                        earned += points_per_blank
-                        break
-                else:
-                    if student_ans.lower() == acc.strip().lower():
-                        earned += points_per_blank
-                        break
+            for accepted in accepted_answers:
+                if case_sensitive and student_answer == accepted.strip():
+                    earned += points_per_blank
+                    break
+                if not case_sensitive and student_answer.lower() == accepted.strip().lower():
+                    earned += points_per_blank
+                    break
 
         return QuestionResult(earned, question.points)
 
     def _grade_numeric(self, question: Question, answer: StudentAnswer) -> QuestionResult:
-        """TYPE-09: Numeric with tolerance."""
         if answer.numeric_answer is None:
             return QuestionResult(0, question.points)
 
@@ -244,19 +343,16 @@ class GradingService:
 
         if abs(answer.numeric_answer - correct_value) <= tolerance:
             return QuestionResult(question.points, question.points, feedback="Correct!")
-        else:
-            return QuestionResult(0, question.points, feedback=f"Incorrect. Expected: {correct_value}")
+        return QuestionResult(0, question.points, feedback=f"Incorrect. Expected: {correct_value}")
 
     def _grade_matching(self, question: Question, answer: StudentAnswer) -> QuestionResult:
-        """TYPE-10: Matching pairs. Partial scoring per correct pair."""
         if not answer.matched_pairs:
             return QuestionResult(0, question.points)
 
-        # Build correct pairs from options
         correct_pairs = {}
-        for opt in question.options:
-            if opt.match_key:
-                correct_pairs[str(opt.id)] = opt.match_key
+        for option in question.options:
+            if option.match_key:
+                correct_pairs[str(option.id)] = option.match_key
 
         total_pairs = len(correct_pairs) if correct_pairs else 1
         points_per_pair = question.points / total_pairs
@@ -269,17 +365,15 @@ class GradingService:
         return QuestionResult(earned, question.points)
 
     def _grade_ordering(self, question: Question, answer: StudentAnswer) -> QuestionResult:
-        """TYPE-11: Ordering/Sequence. Positional scoring."""
         if not answer.ordered_ids:
             return QuestionResult(0, question.points)
 
-        # Correct order from options
         correct_order = sorted(
-            [opt for opt in question.options if opt.order_position is not None],
-            key=lambda o: o.order_position or 0,
+            [option for option in question.options if option.order_position is not None],
+            key=lambda option: option.order_position or 0,
         )
-        correct_ids = [str(opt.id) for opt in correct_order]
-        student_ids = [str(oid) for oid in answer.ordered_ids]
+        correct_ids = [str(option.id) for option in correct_order]
+        student_ids = [str(option_id) for option_id in answer.ordered_ids]
 
         if not correct_ids:
             return QuestionResult(0, question.points, auto_graded=False)
@@ -288,24 +382,22 @@ class GradingService:
         points_per_position = question.points / total_positions
         earned = 0.0
 
-        for i, sid in enumerate(student_ids):
-            if i < len(correct_ids) and sid == correct_ids[i]:
+        for index, student_id in enumerate(student_ids):
+            if index < len(correct_ids) and student_id == correct_ids[index]:
                 earned += points_per_position
 
         return QuestionResult(earned, question.points)
 
     def _grade_categorization(self, question: Question, answer: StudentAnswer) -> QuestionResult:
-        """TYPE-12: Categorization/Sorting into buckets."""
         if not answer.categorized:
             return QuestionResult(0, question.points)
 
-        # Build correct categorization from options
-        correct_categories = {}
-        for opt in question.options:
-            if opt.category_key:
-                correct_categories.setdefault(opt.category_key, set()).add(str(opt.id))
+        correct_categories: dict[str, set[str]] = {}
+        for option in question.options:
+            if option.category_key:
+                correct_categories.setdefault(option.category_key, set()).add(str(option.id))
 
-        total_items = sum(len(v) for v in correct_categories.values())
+        total_items = sum(len(items) for items in correct_categories.values())
         if total_items == 0:
             return QuestionResult(0, question.points, auto_graded=False)
 
@@ -321,7 +413,6 @@ class GradingService:
         return QuestionResult(earned, question.points)
 
     def _grade_hotspot(self, question: Question, answer: StudentAnswer) -> QuestionResult:
-        """TYPE-13: Hotspot/Image annotation. Check if click is within zone."""
         if not answer.hotspot_coords:
             return QuestionResult(0, question.points)
 
@@ -334,47 +425,250 @@ class GradingService:
         if isinstance(coords, dict):
             coords = [coords]
 
-        # Check if any click falls within any zone
         for click in coords:
             cx, cy = click.get("x", 0), click.get("y", 0)
             for zone in zones:
                 if zone.get("type") == "circle":
-                    dist = math.sqrt((cx - zone["cx"])**2 + (cy - zone["cy"])**2)
-                    if dist <= zone.get("r", 0):
+                    distance = math.sqrt((cx - zone["cx"]) ** 2 + (cy - zone["cy"]) ** 2)
+                    if distance <= zone.get("r", 0):
                         return QuestionResult(question.points, question.points, feedback="Correct!")
                 elif zone.get("type") == "rect":
-                    if (zone["x"] <= cx <= zone["x"] + zone["w"] and
-                            zone["y"] <= cy <= zone["y"] + zone["h"]):
+                    if zone["x"] <= cx <= zone["x"] + zone["w"] and zone["y"] <= cy <= zone["y"] + zone["h"]:
                         return QuestionResult(question.points, question.points, feedback="Correct!")
 
         return QuestionResult(0, question.points, feedback="Incorrect region.")
 
     def _grade_code(self, question: Question, answer: StudentAnswer) -> QuestionResult:
-        """TYPE-14: Code submission — placeholder for sandbox execution."""
-        # In production, this would invoke a sandboxed Docker execution
-        # For now, flag for manual review
         if not answer.code_submission:
             return QuestionResult(0, question.points)
-        return QuestionResult(0, question.points, auto_graded=False, feedback="Code submission pending evaluation.")
+
+        config = question.config or {}
+        language = str(config.get("language", "python")).lower().strip()
+        if language not in {"python", "py"}:
+            return QuestionResult(
+                0,
+                question.points,
+                auto_graded=False,
+                feedback=f"Auto-grading is currently available only for Python submissions. Submitted language: {language}.",
+            )
+
+        test_cases = self._get_code_test_cases(config)
+        if not test_cases:
+            return QuestionResult(
+                0,
+                question.points,
+                auto_graded=False,
+                feedback="No test cases configured for this coding question.",
+            )
+
+        execution_mode = str(config.get("execution_mode", "stdin_stdout"))
+        function_name = str(config.get("function_name", "solve"))
+        timeout_seconds = self._bounded_int(config.get("time_limit_seconds"), default=2, minimum=1, maximum=10)
+
+        case_results = []
+        passed_cases = 0
+
+        for index, test_case in enumerate(test_cases, start=1):
+            run_result = self._run_python_code_submission(
+                code=answer.code_submission,
+                stdin_data=str(test_case.get("input", "")),
+                execution_mode=execution_mode,
+                function_name=function_name,
+                timeout_seconds=timeout_seconds,
+            )
+
+            if run_result.get("internal_error"):
+                return QuestionResult(
+                    0,
+                    question.points,
+                    auto_graded=False,
+                    feedback=run_result.get("error", "Code execution failed unexpectedly."),
+                )
+
+            expected_output = self._normalize_code_output(test_case.get("output", ""))
+            actual_output = self._normalize_code_output(run_result.get("stdout", ""))
+            passed = bool(run_result.get("ok")) and actual_output == expected_output
+
+            if passed:
+                passed_cases += 1
+
+            case_results.append({
+                "index": index,
+                "is_hidden": bool(test_case.get("is_hidden", False)),
+                "passed": passed,
+                "expected": expected_output,
+                "actual": actual_output,
+                "error": run_result.get("error"),
+            })
+
+        if question.partial_scoring:
+            score = round(question.points * (passed_cases / len(test_cases)), 4)
+        else:
+            score = question.points if passed_cases == len(test_cases) else 0
+
+        return QuestionResult(
+            score,
+            question.points,
+            auto_graded=True,
+            feedback=self._build_code_feedback(case_results),
+        )
 
     def _grade_likert(self, question: Question, answer: StudentAnswer) -> QuestionResult:
-        """TYPE-16: Likert scale — not graded."""
         return QuestionResult(0, 0, auto_graded=True, feedback="Survey response recorded.")
 
     def _grade_manual(self, question: Question, answer: StudentAnswer) -> QuestionResult:
-        """Fallback: requires manual grading."""
         return QuestionResult(0, question.points, auto_graded=False, feedback="Pending manual review.")
 
     @staticmethod
+    def _get_code_test_cases(config: dict[str, Any]) -> list[dict[str, Any]]:
+        if isinstance(config.get("test_cases"), list) and config.get("test_cases"):
+            return [
+                {
+                    "input": str(test_case.get("input", "")),
+                    "output": str(test_case.get("output", "")),
+                    "is_hidden": bool(test_case.get("is_hidden", False)),
+                }
+                for test_case in config["test_cases"]
+                if isinstance(test_case, dict)
+            ]
+
+        combined_cases: list[dict[str, Any]] = []
+        for test_case in config.get("visible_test_cases", []):
+            if isinstance(test_case, dict):
+                combined_cases.append({
+                    "input": str(test_case.get("input", "")),
+                    "output": str(test_case.get("output", "")),
+                    "is_hidden": False,
+                })
+
+        for test_case in config.get("hidden_test_cases", []):
+            if isinstance(test_case, dict):
+                combined_cases.append({
+                    "input": str(test_case.get("input", "")),
+                    "output": str(test_case.get("output", "")),
+                    "is_hidden": True,
+                })
+
+        return combined_cases
+
+    @staticmethod
+    def _run_python_code_submission(
+        *,
+        code: str,
+        stdin_data: str,
+        execution_mode: str,
+        function_name: str,
+        timeout_seconds: int,
+    ) -> dict[str, Any]:
+        payload = {
+            "code": code,
+            "input": stdin_data,
+            "execution_mode": execution_mode,
+            "function_name": function_name,
+        }
+
+        try:
+            process = subprocess.run(
+                [sys.executable, "-c", PYTHON_CODE_RUNNER],
+                input=json.dumps(payload),
+                text=True,
+                capture_output=True,
+                timeout=timeout_seconds + 1,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            return {
+                "ok": False,
+                "stdout": "",
+                "error": f"Execution timed out after {timeout_seconds}s.",
+            }
+        except Exception as exc:
+            return {
+                "ok": False,
+                "stdout": "",
+                "error": f"Executor failure: {exc}",
+                "internal_error": True,
+            }
+
+        if not process.stdout:
+            return {
+                "ok": False,
+                "stdout": "",
+                "error": process.stderr.strip() or "Executor returned no output.",
+                "internal_error": True,
+            }
+
+        try:
+            return json.loads(process.stdout)
+        except json.JSONDecodeError:
+            return {
+                "ok": False,
+                "stdout": "",
+                "error": "Executor produced an unreadable response.",
+                "internal_error": True,
+            }
+
+    @staticmethod
+    def _normalize_code_output(value: Any) -> str:
+        text = "" if value is None else str(value)
+        text = text.replace("\r\n", "\n").strip()
+        if not text:
+            return ""
+        return "\n".join(line.rstrip() for line in text.split("\n")).strip()
+
+    @staticmethod
+    def _clip_text(value: str, limit: int = 80) -> str:
+        if len(value) <= limit:
+            return value
+        return f"{value[:limit - 3]}..."
+
+    @classmethod
+    def _build_code_feedback(cls, case_results: list[dict[str, Any]]) -> str:
+        total_cases = len(case_results)
+        passed_cases = sum(1 for case in case_results if case["passed"])
+        hidden_failures = sum(1 for case in case_results if not case["passed"] and case["is_hidden"])
+        visible_failures = [case for case in case_results if not case["passed"] and not case["is_hidden"]]
+
+        feedback_parts = [f"Passed {passed_cases}/{total_cases} test cases."]
+
+        if visible_failures:
+            failure = visible_failures[0]
+            if failure.get("error"):
+                error_line = str(failure["error"]).strip().splitlines()[-1]
+                feedback_parts.append(
+                    f"Visible case {failure['index']} failed with an error: {cls._clip_text(error_line)}"
+                )
+            else:
+                expected = cls._clip_text(failure["expected"] or "<empty>")
+                actual = cls._clip_text(failure["actual"] or "<empty>")
+                feedback_parts.append(
+                    f"Visible case {failure['index']} expected '{expected}' but got '{actual}'."
+                )
+
+        if hidden_failures:
+            feedback_parts.append(f"{hidden_failures} hidden test case(s) failed.")
+
+        if passed_cases == total_cases:
+            feedback_parts.append("All configured test cases passed.")
+
+        return " ".join(feedback_parts)
+
+    @staticmethod
+    def _bounded_int(value: Any, *, default: int, minimum: int, maximum: int) -> int:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            return default
+        return max(minimum, min(parsed, maximum))
+
+    @staticmethod
     def _compute_grade(score_percent: float) -> str:
-        """Simple letter grade computation."""
         if score_percent >= 90:
             return "A"
-        elif score_percent >= 80:
+        if score_percent >= 80:
             return "B"
-        elif score_percent >= 70:
+        if score_percent >= 70:
             return "C"
-        elif score_percent >= 60:
+        if score_percent >= 60:
             return "D"
-        else:
-            return "F"
+        return "F"

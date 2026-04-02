@@ -1,31 +1,31 @@
-/* ─── Admin: Group Detail Page ─── */
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
-import { FiArrowLeft, FiSave, FiUserPlus, FiTrash2 } from 'react-icons/fi';
+import { FiArrowLeft, FiSave, FiTrash2, FiUserPlus } from 'react-icons/fi';
 import api from '@/lib/api';
-import type { User } from '@/types';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import Select from '@/components/ui/Select';
-import Card from '@/components/ui/Card';
+import type { CurriculumTree, User } from '@/types';
 import Badge from '@/components/ui/Badge';
-import Table from '@/components/ui/Table';
-import Modal from '@/components/ui/Modal';
+import Button from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
 import ConfirmModal from '@/components/ui/ConfirmModal';
-import Spinner from '@/components/ui/Spinner';
 import EmptyState from '@/components/ui/EmptyState';
+import Input from '@/components/ui/Input';
+import Modal from '@/components/ui/Modal';
+import Select from '@/components/ui/Select';
+import Spinner from '@/components/ui/Spinner';
+import Table from '@/components/ui/Table';
 import styles from './AdminGroupDetailPage.module.scss';
 
-/* ── Types ── */
 interface GroupDetail {
   id: string;
   name: string;
   subject?: string;
+  subject_id?: string;
+  subject_name?: string;
   academic_year?: string;
   semester?: string;
   teacher_id?: string;
@@ -43,9 +43,9 @@ interface EnrolledStudent {
   enrolled_at?: string;
 }
 
-/* ── Schemas ── */
 const editGroupSchema = z.object({
   name: z.string().min(2, 'Name is required'),
+  subject_id: z.string().optional(),
   subject: z.string().optional(),
   academic_year: z.string().optional(),
   semester: z.string().optional(),
@@ -67,8 +67,8 @@ export default function AdminGroupDetailPage() {
 
   const [editing, setEditing] = useState(false);
   const [enrollModalOpen, setEnrollModalOpen] = useState(false);
+  const [removeStudentId, setRemoveStudentId] = useState<string | null>(null);
 
-  /* ── Fetch group detail ── */
   const { data: group, isLoading } = useQuery({
     queryKey: ['admin-group', id],
     queryFn: async () => {
@@ -78,12 +78,9 @@ export default function AdminGroupDetailPage() {
     enabled: !!id,
   });
 
-  /* ── Fetch enrolled students ── */
   const { data: students = [], isLoading: studentsLoading } = useQuery({
     queryKey: ['admin-group-students', id],
     queryFn: async () => {
-      // Fetch enrollments by getting group members — use users endpoint filtered if available
-      // Fallback: the group detail may include students or we fetch them separately
       try {
         const res = await api.get(`/admin/groups/${id}/students`);
         return (res.data.data ?? res.data) as EnrolledStudent[];
@@ -94,7 +91,6 @@ export default function AdminGroupDetailPage() {
     enabled: !!id,
   });
 
-  /* ── Fetch teachers for select ── */
   const { data: teacherData } = useQuery({
     queryKey: ['admin-teachers'],
     queryFn: async () => {
@@ -104,12 +100,27 @@ export default function AdminGroupDetailPage() {
     enabled: editing,
   });
 
+  const { data: curriculumData } = useQuery({
+    queryKey: ['admin-curriculum-tree'],
+    queryFn: async () => {
+      const res = await api.get('/admin/curriculum/tree');
+      return (res.data.data ?? res.data) as CurriculumTree;
+    },
+    enabled: editing,
+  });
+
   const teacherOptions = [
     { value: '', label: 'No teacher assigned' },
-    ...(teacherData ?? []).map((t) => ({ value: t.id, label: t.full_name })),
+    ...(teacherData ?? []).map((teacher) => ({ value: teacher.id, label: teacher.full_name })),
+  ];
+  const subjectOptions = [
+    { value: '', label: 'Use legacy subject text' },
+    ...((curriculumData?.subjects ?? []).map((subject) => ({
+      value: subject.id,
+      label: subject.name,
+    }))),
   ];
 
-  /* ── Edit form ── */
   const {
     register: registerEdit,
     handleSubmit: handleEditSubmit,
@@ -120,6 +131,7 @@ export default function AdminGroupDetailPage() {
     values: group
       ? {
           name: group.name,
+          subject_id: group.subject_id ?? '',
           subject: group.subject ?? '',
           academic_year: group.academic_year ?? '',
           semester: group.semester ?? '',
@@ -128,7 +140,6 @@ export default function AdminGroupDetailPage() {
       : undefined,
   });
 
-  /* ── Enroll form ── */
   const {
     register: registerEnroll,
     handleSubmit: handleEnrollSubmit,
@@ -138,25 +149,28 @@ export default function AdminGroupDetailPage() {
     resolver: zodResolver(enrollSchema),
   });
 
-  /* ── Update group mutation ── */
   const updateMutation = useMutation({
     mutationFn: (payload: EditGroupForm) => {
-      const body = { ...payload, teacher_id: payload.teacher_id || undefined };
+      const body = {
+        ...payload,
+        teacher_id: payload.teacher_id || undefined,
+        subject_id: payload.subject_id || undefined,
+        subject: payload.subject || undefined,
+      };
       return api.patch(`/admin/groups/${id}`, body);
     },
     onSuccess: () => {
       toast.success('Group updated');
       queryClient.invalidateQueries({ queryKey: ['admin-group', id] });
       queryClient.invalidateQueries({ queryKey: ['admin-groups'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-curriculum-review-queue'] });
       setEditing(false);
     },
     onError: () => toast.error('Failed to update group'),
   });
 
-  /* ── Enroll students mutation ── */
   const enrollMutation = useMutation({
-    mutationFn: (studentIds: string[]) =>
-      api.post(`/admin/groups/${id}/enroll`, { student_ids: studentIds }),
+    mutationFn: (studentIds: string[]) => api.post(`/admin/groups/${id}/enroll`, { student_ids: studentIds }),
     onSuccess: () => {
       toast.success('Students enrolled');
       queryClient.invalidateQueries({ queryKey: ['admin-group', id] });
@@ -165,17 +179,15 @@ export default function AdminGroupDetailPage() {
       resetEnroll();
     },
     onError: (err: unknown) => {
-      const msg =
+      const message =
         (err as { response?: { data?: { message?: string } } }).response?.data?.message ||
         'Failed to enroll students';
-      toast.error(msg);
+      toast.error(message);
     },
   });
 
-  /* ── Remove student mutation ── */
   const removeMutation = useMutation({
-    mutationFn: (studentId: string) =>
-      api.delete(`/admin/groups/${id}/students/${studentId}`),
+    mutationFn: (studentId: string) => api.delete(`/admin/groups/${id}/students/${studentId}`),
     onSuccess: () => {
       toast.success('Student removed');
       queryClient.invalidateQueries({ queryKey: ['admin-group', id] });
@@ -187,17 +199,13 @@ export default function AdminGroupDetailPage() {
   const onEditSubmit = (formData: EditGroupForm) => updateMutation.mutate(formData);
 
   const onEnrollSubmit = (formData: EnrollForm) => {
-    const ids = formData.student_ids.split(',').map((s) => s.trim()).filter(Boolean);
+    const ids = formData.student_ids
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
     enrollMutation.mutate(ids);
   };
 
-  const [removeStudentId, setRemoveStudentId] = useState<string | null>(null);
-
-  const handleRemoveStudent = (studentId: string) => {
-    setRemoveStudentId(studentId);
-  };
-
-  /* ── Loading ── */
   if (isLoading) {
     return (
       <div className={styles.center}>
@@ -216,12 +224,10 @@ export default function AdminGroupDetailPage() {
 
   return (
     <div className={styles.page}>
-      {/* Back */}
       <button className={styles.back} onClick={() => navigate('/admin/groups')}>
         <FiArrowLeft /> Back to Groups
       </button>
 
-      {/* Group info */}
       <Card
         title={group.name}
         actions={
@@ -233,19 +239,19 @@ export default function AdminGroupDetailPage() {
         <div className={styles.infoGrid}>
           <div className={styles.infoItem}>
             <span className={styles.infoLabel}>Subject</span>
-            <span className={styles.infoValue}>{group.subject ?? '—'}</span>
+            <span className={styles.infoValue}>{group.subject_name ?? group.subject ?? '-'}</span>
           </div>
           <div className={styles.infoItem}>
             <span className={styles.infoLabel}>Academic Year</span>
-            <span className={styles.infoValue}>{group.academic_year ?? '—'}</span>
+            <span className={styles.infoValue}>{group.academic_year ?? '-'}</span>
           </div>
           <div className={styles.infoItem}>
             <span className={styles.infoLabel}>Semester</span>
-            <span className={styles.infoValue}>{group.semester ?? '—'}</span>
+            <span className={styles.infoValue}>{group.semester ?? '-'}</span>
           </div>
           <div className={styles.infoItem}>
             <span className={styles.infoLabel}>Teacher</span>
-            <span className={styles.infoValue}>{group.teacher_name ?? '—'}</span>
+            <span className={styles.infoValue}>{group.teacher_name ?? '-'}</span>
           </div>
           <div className={styles.infoItem}>
             <span className={styles.infoLabel}>Students</span>
@@ -253,14 +259,11 @@ export default function AdminGroupDetailPage() {
           </div>
           <div className={styles.infoItem}>
             <span className={styles.infoLabel}>Created</span>
-            <span className={styles.infoValue}>
-              {new Date(group.created_at).toLocaleDateString()}
-            </span>
+            <span className={styles.infoValue}>{new Date(group.created_at).toLocaleDateString()}</span>
           </div>
         </div>
       </Card>
 
-      {/* Edit form */}
       <Card
         title="Edit Group"
         actions={
@@ -269,7 +272,14 @@ export default function AdminGroupDetailPage() {
               Edit
             </Button>
           ) : (
-            <Button variant="ghost" size="sm" onClick={() => { setEditing(false); resetEdit(); }}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setEditing(false);
+                resetEdit();
+              }}
+            >
               Cancel
             </Button>
           )
@@ -283,9 +293,17 @@ export default function AdminGroupDetailPage() {
               error={editErrors.name?.message}
               {...registerEdit('name')}
             />
-            <Input
-              label="Subject"
+            <Select
+              label="Curriculum Subject"
               disabled={!editing}
+              options={subjectOptions}
+              error={editErrors.subject_id?.message}
+              {...registerEdit('subject_id')}
+            />
+            <Input
+              label="Legacy Subject / Display Name"
+              disabled={!editing}
+              helperText="Optional when a curriculum subject is selected."
               error={editErrors.subject?.message}
               {...registerEdit('subject')}
             />
@@ -320,7 +338,6 @@ export default function AdminGroupDetailPage() {
         </form>
       </Card>
 
-      {/* Enrolled students */}
       <Card
         title="Enrolled Students"
         actions={
@@ -337,17 +354,17 @@ export default function AdminGroupDetailPage() {
           <EmptyState title="No students enrolled" description="Enroll students to this group." />
         ) : (
           <Table headers={['Name', 'Email', 'Student ID', 'Actions']}>
-            {students.map((s) => (
-              <tr key={s.id}>
-                <td>{s.full_name}</td>
-                <td>{s.email}</td>
-                <td>{s.student_id_number ?? '—'}</td>
+            {students.map((student) => (
+              <tr key={student.id}>
+                <td>{student.full_name}</td>
+                <td>{student.email}</td>
+                <td>{student.student_id_number ?? '-'}</td>
                 <td>
                   <Button
                     variant="danger"
                     size="sm"
                     icon={<FiTrash2 />}
-                    onClick={() => handleRemoveStudent(s.id)}
+                    onClick={() => setRemoveStudentId(student.id)}
                   >
                     Remove
                   </Button>
@@ -358,7 +375,6 @@ export default function AdminGroupDetailPage() {
         )}
       </Card>
 
-      {/* Enroll Modal */}
       <Modal
         isOpen={enrollModalOpen}
         onClose={() => setEnrollModalOpen(false)}
@@ -369,7 +385,7 @@ export default function AdminGroupDetailPage() {
           <Input
             label="Student IDs"
             placeholder="Comma-separated student ID numbers (e.g. S1234, S5678)"
-            helperText="Enter student ID numbers (not UUIDs), separated by commas."
+            helperText="Enter student ID numbers, not UUIDs."
             error={enrollErrors.student_ids?.message}
             {...registerEnroll('student_ids')}
           />
@@ -387,7 +403,10 @@ export default function AdminGroupDetailPage() {
       <ConfirmModal
         isOpen={!!removeStudentId}
         onClose={() => setRemoveStudentId(null)}
-        onConfirm={() => { removeMutation.mutate(removeStudentId!); setRemoveStudentId(null); }}
+        onConfirm={() => {
+          removeMutation.mutate(removeStudentId!);
+          setRemoveStudentId(null);
+        }}
         title="Remove Student"
         message="Remove this student from the group?"
         confirmLabel="Remove"

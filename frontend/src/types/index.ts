@@ -41,6 +41,8 @@ export interface Group {
   id: string;
   name: string;
   subject?: string;
+  subject_id?: string;
+  subject_name?: string;
   academic_year?: string;
   semester?: string;
   teacher_id?: string;
@@ -68,6 +70,10 @@ export interface Assessment {
   assessment_type: AssessmentType;
   group_id?: string;
   group_name?: string;
+  subject_id?: string;
+  subject_name?: string;
+  group_subject_id?: string;
+  group_subject_name?: string;
   teacher_id?: string;
   time_limit_minutes?: number;
   available_from?: string;
@@ -80,6 +86,12 @@ export interface Assessment {
   max_violations: number;
   time_penalty_minutes: number;
   enforce_fullscreen: boolean;
+  block_keyboard_shortcuts: boolean;
+  tab_switch_detection: boolean;
+  devtools_detection: boolean;
+  right_click_block: boolean;
+  copy_paste_block: boolean;
+  webcam_proctoring: boolean;
   access_token?: string;
   is_published: boolean;
   is_active: boolean;
@@ -88,22 +100,35 @@ export interface Assessment {
   questions?: Question[];
 }
 
+export interface AssessmentProctoringPayload {
+  enforce_fullscreen: boolean;
+  max_violations: number;
+  time_penalty_minutes: number;
+  block_keyboard_shortcuts: boolean;
+  tab_switch_detection: boolean;
+  devtools_detection: boolean;
+  right_click_block: boolean;
+  copy_paste_block: boolean;
+  webcam_proctoring?: boolean;
+}
+
 export interface AssessmentCreate {
   title: string;
   description?: string;
   assessment_type: AssessmentType;
-  group_id: string;
+  format_type?: string;
+  group_id?: string;
+  subject_id?: string;
   time_limit_minutes?: number;
   available_from?: string;
   available_until?: string;
   max_attempts?: number;
+  scoring_policy?: string;
   passing_score?: number;
   score_release_policy?: ScoreReleasePolicy;
   shuffle_questions?: boolean;
   shuffle_options?: boolean;
-  max_violations?: number;
-  time_penalty_minutes?: number;
-  enforce_fullscreen?: boolean;
+  proctoring: AssessmentProctoringPayload;
 }
 
 /* ── Question ── */
@@ -127,6 +152,46 @@ export type QuestionType =
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
 
+export type CodeExecutionMode = 'stdin_stdout' | 'function';
+
+export interface CodeQuestionTestCase {
+  input: string;
+  output: string;
+  is_hidden?: boolean;
+}
+
+export interface CodeQuestionConfig extends Record<string, unknown> {
+  language?: string;
+  execution_mode?: CodeExecutionMode;
+  function_name?: string;
+  starter_code?: string;
+  test_cases?: CodeQuestionTestCase[];
+  visible_test_cases?: CodeQuestionTestCase[];
+  hidden_test_cases?: CodeQuestionTestCase[];
+  time_limit_seconds?: number;
+  memory_limit_mb?: number;
+}
+
+export interface CodeRunCaseResult {
+  index: number;
+  input: string;
+  expected_output: string;
+  actual_output: string;
+  passed: boolean;
+  error?: string | null;
+}
+
+export interface CodeRunResult {
+  language: string;
+  execution_mode: CodeExecutionMode;
+  passed_cases: number;
+  total_cases: number;
+  feedback: string;
+  cases: CodeRunCaseResult[];
+}
+
+export type QuestionConfig = Record<string, unknown>;
+
 export interface Question {
   id: string;
   assessment_id: string;
@@ -138,8 +203,15 @@ export interface Question {
   negative_marking: number;
   order_index?: number;
   topic_tag?: string;
+  topic_id?: string;
+  topic_name?: string;
+  module_id?: string;
+  module_name?: string;
+  subject_id?: string;
+  subject_name?: string;
   difficulty?: Difficulty;
   blooms_level?: string;
+  config?: QuestionConfig;
   options?: QuestionOption[];
 }
 
@@ -163,9 +235,117 @@ export interface QuestionCreate {
   negative_marking?: number;
   order_index?: number;
   topic_tag?: string;
+  topic_id?: string;
   difficulty?: Difficulty;
   blooms_level?: string;
+  config?: QuestionConfig;
   options?: Omit<QuestionOption, 'id' | 'question_id'>[];
+}
+
+export interface QuestionRevision {
+  id: string;
+  question_id: string;
+  version_number: number;
+  source: string;
+  summary?: string;
+  snapshot: Record<string, unknown>;
+  created_by_id?: string;
+  created_at: string;
+}
+
+export interface BulkQuestionPreviewItem {
+  index: number;
+  is_valid: boolean;
+  question_type?: string;
+  content_preview?: string;
+  assessment_id?: string;
+  assessment_title?: string;
+  question_bank_id?: string;
+  difficulty?: string;
+  points?: number;
+  topic_tag?: string;
+  resolved_topic_id?: string;
+  resolved_topic_name?: string;
+  options_count: number;
+  visible_test_cases: number;
+  hidden_test_cases: number;
+  warnings: string[];
+  errors: string[];
+}
+
+export interface BulkQuestionPreviewResponse {
+  total_items: number;
+  valid_items: number;
+  invalid_items: number;
+  questions: BulkQuestionPreviewItem[];
+}
+
+/* -- Curriculum -- */
+export interface CurriculumTopic {
+  id: string;
+  module_id: string;
+  module_name?: string;
+  subject_id?: string;
+  subject_name?: string;
+  name: string;
+  description?: string;
+  order_index: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CurriculumModule {
+  id: string;
+  subject_id: string;
+  name: string;
+  description?: string;
+  order_index: number;
+  created_at: string;
+  updated_at: string;
+  topics?: CurriculumTopic[];
+}
+
+export interface CurriculumSubject {
+  id: string;
+  name: string;
+  code?: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+  modules?: CurriculumModule[];
+}
+
+export interface CurriculumTree {
+  subjects: CurriculumSubject[];
+}
+
+export interface LegacyGroupMapping {
+  group_id: string;
+  group_name: string;
+  legacy_subject?: string;
+  current_subject_id?: string;
+  current_subject_name?: string;
+  suggested_subject_id?: string;
+  suggested_subject_name?: string;
+}
+
+export interface LegacyQuestionMapping {
+  question_id: string;
+  assessment_id?: string;
+  assessment_title?: string;
+  content_preview: string;
+  legacy_topic?: string;
+  subject_id?: string;
+  subject_name?: string;
+  current_topic_id?: string;
+  current_topic_name?: string;
+  suggested_topic_id?: string;
+  suggested_topic_name?: string;
+}
+
+export interface CurriculumReviewQueue {
+  groups: LegacyGroupMapping[];
+  questions: LegacyQuestionMapping[];
 }
 
 /* ── Attempt ── */
@@ -245,6 +425,9 @@ export interface Violation {
 
 /* ── Analytics ── */
 export interface StudentDashboard {
+  student_name?: string | null;
+  selected_semester?: string | null;
+  available_semesters?: string[];
   overall_score_avg: number | null;
   pass_rate: number | null;
   assessments_taken: number;
@@ -256,12 +439,19 @@ export interface StudentDashboard {
   subject_scores: SubjectScore[];
   weak_topics: string[];
   recent_results: ScoreTrendPoint[];
+  topic_performance?: TopicPerformance[];
+  comparison_summary?: ComparisonSummary;
+  insights?: string[];
 }
 
 export interface ScoreTrendPoint {
   date: string;
   score: number;
   assessment_id: string;
+  assessment_title?: string;
+  group_name?: string | null;
+  subject?: string | null;
+  passed?: boolean;
 }
 
 export interface SubjectScore {
@@ -271,6 +461,70 @@ export interface SubjectScore {
   assessments_taken: number;
   average_score: number | null;
   pass_rate: number | null;
+  group_average?: number | null;
+  delta_from_group_avg?: number | null;
+}
+
+export interface TopicPerformance {
+  topic: string;
+  average_score: number;
+  attempts: number;
+  needs_attention: boolean;
+}
+
+export interface ComparisonSummary {
+  key?: string;
+  label?: string;
+  description?: string;
+  student_average: number | null;
+  peer_average: number | null;
+  delta_vs_peer: number | null;
+  percentile_estimate: number | null;
+  peer_attempts?: number;
+  peer_students?: number;
+}
+
+export interface ReviewSubjectScore {
+  subject_id: string;
+  subject_name: string;
+  assessments_taken: number;
+  assessment_titles: string[];
+  average_score: number | null;
+  peer_average: number | null;
+  delta_vs_peer: number | null;
+  pass_rate: number | null;
+}
+
+export interface ReviewPeriodBreakdown {
+  label: string;
+  average_score: number | null;
+  pass_rate: number | null;
+  assessments_taken: number;
+}
+
+export interface StudentReview {
+  student_name?: string | null;
+  period: 'semester' | 'year';
+  selected_academic_year?: string | null;
+  selected_semester?: string | null;
+  available_academic_years: string[];
+  available_semesters: string[];
+  overall_score_avg: number | null;
+  pass_rate: number | null;
+  assessments_taken: number;
+  assessments_passed: number;
+  streak_count: number;
+  improvement_rate: number | null;
+  violation_count_total: number;
+  score_trend: ScoreTrendPoint[];
+  subject_scores: ReviewSubjectScore[];
+  weak_topics: string[];
+  topic_performance: TopicPerformance[];
+  comparison_summary?: ComparisonSummary | null;
+  comparison_matrix: ComparisonSummary[];
+  period_breakdown: ReviewPeriodBreakdown[];
+  insights: string[];
+  recent_results: ScoreTrendPoint[];
 }
 
 export interface AdminOverview {

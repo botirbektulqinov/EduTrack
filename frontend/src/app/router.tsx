@@ -12,6 +12,7 @@ import ResetPasswordPage from '@/modules/auth/ResetPasswordPage';
 /* Admin Pages */
 import AdminUsersPage from '@/modules/admin/users/AdminUsersPage';
 import AdminUserDetailPage from '@/modules/admin/users/AdminUserDetailPage';
+import AdminCurriculumPage from '@/modules/admin/curriculum/AdminCurriculumPage';
 import AdminGroupsPage from '@/modules/admin/groups/AdminGroupsPage';
 import AdminGroupDetailPage from '@/modules/admin/groups/AdminGroupDetailPage';
 import AdminDashboardPage from '@/modules/admin/analytics/AdminDashboardPage';
@@ -30,6 +31,7 @@ import TeacherLeaderboardsPage from '@/modules/teacher/analytics/TeacherLeaderbo
 
 /* Student Pages */
 import StudentDashboardPage from '@/modules/student/dashboard/StudentDashboardPage';
+import StudentReviewPage from '@/modules/student/review/StudentReviewPage';
 import StudentResultsPage from '@/modules/student/results/StudentResultsPage';
 import StudentResultDetailPage from '@/modules/student/results/StudentResultDetailPage';
 import AssessmentTakePage from '@/modules/student/take/AssessmentTakePage';
@@ -67,6 +69,7 @@ export const router = createBrowserRouter([
       { path: '/admin/dashboard', element: <AdminDashboardPage /> },
       { path: '/admin/users', element: <AdminUsersPage /> },
       { path: '/admin/users/:id', element: <AdminUserDetailPage /> },
+      { path: '/admin/curriculum', element: <AdminCurriculumPage /> },
       { path: '/admin/groups', element: <AdminGroupsPage /> },
       { path: '/admin/groups/:id', element: <AdminGroupDetailPage /> },
       { path: '/admin/reports', element: <AdminReportsPage /> },
@@ -104,6 +107,7 @@ export const router = createBrowserRouter([
     children: [
       { path: '/student', element: <Navigate to="/student/dashboard" replace /> },
       { path: '/student/dashboard', element: <StudentDashboardPage /> },
+      { path: '/student/review', element: <StudentReviewPage /> },
       { path: '/student/results', element: <StudentResultsPage /> },
       { path: '/student/results/:id', element: <StudentResultDetailPage /> },
     ],

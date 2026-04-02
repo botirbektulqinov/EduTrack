@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Env and local secrets
+.env
+.env.local
+.env.*.local
+
+# Logs and runtime artifacts
+*.log
+backend.out.log
+backend.err.log
+frontend.out.log
+frontend.err.log
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Editors and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

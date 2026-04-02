@@ -1,13 +1,23 @@
 /* ─── useProctoring — Anti-cheat hook (§6, §11.2) ─── */
 import { useRef, useEffect, useCallback } from 'react';
 import { ProctoringSDK } from '@/lib/proctoring-sdk';
-import type { ProctoringConfig, ViolationEvent } from '@/types';
+import type { ProctoringConfig, ViolationEvent, ViolationType } from '@/types';
 
 interface UseProctoringOptions {
   config: ProctoringConfig;
   onViolation: (event: ViolationEvent) => void;
   onTerminate: () => void;
   enabled?: boolean;
+}
+
+interface ProctoringDebugControls {
+  simulateViolation?: (type: ViolationType) => void;
+}
+
+declare global {
+  interface Window {
+    __EDUTRACK_PROCTORING?: ProctoringDebugControls;
+  }
 }
 
 export function useProctoring({
@@ -27,14 +37,13 @@ export function useProctoring({
 
     // expose simple debug helper for local repro: window.__EDUTRACK_PROCTORING.simulateViolation(type)
     try {
-      (window as any).__EDUTRACK_PROCTORING = (window as any).__EDUTRACK_PROCTORING ?? {};
-      (window as any).__EDUTRACK_PROCTORING.simulateViolation = (type: string) => {
-        // allow calling with string names from console
-        if (sdkRef.current && typeof (sdkRef.current as any).simulateViolation === 'function') {
-          (sdkRef.current as any).simulateViolation(type);
-        }
+      window.__EDUTRACK_PROCTORING = window.__EDUTRACK_PROCTORING ?? {
+        simulateViolation: () => undefined,
       };
-    } catch (err) {
+      window.__EDUTRACK_PROCTORING.simulateViolation = (type: ViolationType) => {
+        sdkRef.current?.simulateViolation(type);
+      };
+    } catch {
       // ignore in restricted environments
     }
 
@@ -42,8 +51,10 @@ export function useProctoring({
       sdk.destroy();
       sdkRef.current = null;
       try {
-        if ((window as any).__EDUTRACK_PROCTORING) delete (window as any).__EDUTRACK_PROCTORING.simulateViolation;
-      } catch (e) {
+        if (window.__EDUTRACK_PROCTORING) {
+          delete window.__EDUTRACK_PROCTORING.simulateViolation;
+        }
+      } catch {
         /* ignore */
       }
     };

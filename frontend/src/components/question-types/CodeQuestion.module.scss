@@ -12,46 +12,158 @@
   line-height: 1.6;
 }
 
-.editorWrap {
+.meta {
   display: flex;
+  flex-wrap: wrap;
+  gap: $sp-2;
+}
+
+.metaChip {
+  display: inline-flex;
+  align-items: center;
+  padding: $sp-1 $sp-2;
+  border-radius: $radius-full;
+  background: rgba($primary, 0.08);
+  color: $primary-dark;
+  font-size: $fs-xs;
+  font-weight: $fw-semibold;
+  letter-spacing: 0.01em;
+}
+
+.helper {
+  margin: 0;
+  padding: $sp-3 $sp-4;
+  border-radius: $radius;
+  background: rgba($success, 0.08);
+  color: $text;
+  font-size: $fs-sm;
+  line-height: 1.6;
+
+  code {
+    font-family: $font-mono;
+  }
+}
+
+.cases,
+.runResults {
+  @include flex-col;
+  gap: $sp-3;
+}
+
+.casesHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $sp-3;
+  flex-wrap: wrap;
+}
+
+.casesTitle {
+  margin: 0;
+  font-size: $fs-sm;
+  font-weight: $fw-semibold;
+  color: $text;
+}
+
+.caseGrid,
+.runCaseList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: $sp-3;
+}
+
+.caseCard,
+.runCaseCard {
+  padding: $sp-3;
+  border: 1px solid $border;
+  border-radius: $radius;
+  background: $bg-secondary;
+}
+
+.runCaseCard {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.06));
+}
+
+.pass {
+  border-color: rgba($success, 0.35);
+}
+
+.fail {
+  border-color: rgba($danger, 0.35);
+}
+
+.caseLabel,
+.runCaseHeader {
+  margin-bottom: $sp-2;
+  font-size: $fs-xs;
+  font-weight: $fw-bold;
+  color: $primary-dark;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.runCaseHeader {
+  display: flex;
+  justify-content: space-between;
+}
+
+.caseBlock {
+  display: grid;
+  gap: $sp-1;
+
+  & + & {
+    margin-top: $sp-3;
+  }
+
+  span {
+    font-size: $fs-xs;
+    color: $text-muted;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  pre {
+    margin: 0;
+    padding: $sp-2;
+    border-radius: $radius-sm;
+    background: rgba($gray-900, 0.95);
+    color: $gray-100;
+    font-family: $font-mono;
+    font-size: $fs-xs;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+}
+
+.editorWrap {
   border: 1px solid $border;
   border-radius: $radius;
   overflow: hidden;
   background: $gray-900;
 }
 
-.lineNumbers {
-  display: flex;
-  flex-direction: column;
-  padding: $sp-3 $sp-2;
-  background: $gray-800;
-  user-select: none;
-  min-width: 40px;
-  text-align: right;
-
-  span {
-    font-family: $font-mono;
-    font-size: $fs-xs;
-    line-height: 1.6;
-    color: $gray-500;
-  }
+.editorLoading {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  color: $gray-300;
+  font-size: $fs-sm;
 }
 
-.editor {
-  flex: 1;
-  padding: $sp-3;
-  font-family: $font-mono;
-  font-size: $fs-sm;
-  line-height: 1.6;
-  color: $gray-100;
-  background: $gray-900;
-  border: none;
-  outline: none;
-  resize: vertical;
-  min-height: 240px;
-  tab-size: 2;
+.runSummary {
+  display: grid;
+  gap: $sp-1;
+  padding: $sp-3 $sp-4;
+  border-radius: $radius;
+  background: rgba($primary, 0.06);
 
-  &::placeholder {
-    color: $gray-600;
+  strong {
+    color: $text;
+  }
+
+  span {
+    color: $text-muted;
+    font-size: $fs-sm;
+    line-height: 1.5;
   }
 }

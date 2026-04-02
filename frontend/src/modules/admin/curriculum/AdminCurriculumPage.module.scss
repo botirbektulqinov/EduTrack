@@ -1,0 +1,195 @@
+@use '../../../styles/variables' as *;
+@use '../../../styles/mixins' as *;
+
+.page {
+  @include flex-col;
+  gap: $sp-6;
+}
+
+.header {
+  @include flex-between;
+  gap: $sp-4;
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  font-size: $fs-2xl;
+  font-weight: $fw-bold;
+  color: $text;
+}
+
+.subtitle {
+  margin: $sp-1 0 0;
+  color: $text-muted;
+  font-size: $fs-sm;
+  line-height: 1.6;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $sp-4;
+}
+
+.reviewGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-4;
+}
+
+.cardContent {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: $sp-4;
+}
+
+.list {
+  @include flex-col;
+  gap: $sp-2;
+}
+
+.listItem {
+  @include flex-between;
+  gap: $sp-3;
+  width: 100%;
+  padding: $sp-3;
+  border: 1px solid $border;
+  border-radius: $radius;
+  background: $bg;
+  color: $text;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color $transition-fast, transform $transition-fast, box-shadow $transition-fast;
+
+  strong,
+  span {
+    display: block;
+  }
+
+  strong {
+    font-size: $fs-sm;
+    font-weight: $fw-semibold;
+  }
+
+  span {
+    margin-top: $sp-1;
+    font-size: $fs-xs;
+    color: $text-muted;
+  }
+
+  &:hover {
+    border-color: $primary;
+    box-shadow: $shadow-sm;
+    transform: translateY(-1px);
+  }
+}
+
+.active {
+  border-color: $primary;
+  background: rgba($primary, 0.06);
+}
+
+.editor {
+  @include flex-col;
+  gap: $sp-3;
+  padding: $sp-4;
+  border: 1px solid $border;
+  border-radius: $radius;
+  background: linear-gradient(180deg, rgba($primary, 0.03), rgba($success, 0.03));
+}
+
+.editorHeader {
+  @include flex-between;
+  gap: $sp-2;
+
+  h3 {
+    margin: 0;
+    font-size: $fs-base;
+    color: $text;
+  }
+}
+
+.reviewList {
+  @include flex-col;
+  gap: $sp-3;
+}
+
+.reviewItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: $sp-4;
+  padding: $sp-4;
+  border: 1px solid $border;
+  border-radius: $radius;
+  background: $bg-secondary;
+}
+
+.reviewMeta {
+  @include flex-col;
+  gap: $sp-1;
+
+  strong {
+    color: $text;
+    font-size: $fs-sm;
+  }
+
+  span {
+    color: $text-muted;
+    font-size: $fs-xs;
+    line-height: 1.5;
+  }
+}
+
+.badgeRow {
+  display: flex;
+  gap: $sp-2;
+  flex-wrap: wrap;
+  margin-top: $sp-1;
+}
+
+.reviewActions {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+}
+
+.inlineSelect {
+  @include input-base;
+  min-width: 240px;
+}
+
+.emptyText {
+  color: $text-muted;
+  font-size: $fs-sm;
+  line-height: 1.6;
+}
+
+.center {
+  @include flex-center;
+  padding: $sp-10 0;
+}
+
+@media (max-width: 1200px) {
+  .grid,
+  .reviewGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .cardContent,
+  .reviewItem {
+    grid-template-columns: 1fr;
+  }
+
+  .reviewActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .inlineSelect {
+    min-width: 0;
+    width: 100%;
+  }
+}

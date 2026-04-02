@@ -7,12 +7,15 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # ── Student Dashboard ──
 
 class StudentDashboardResponse(BaseModel):
+    student_name: Optional[str] = None
+    selected_semester: Optional[str] = None
+    available_semesters: List[str] = Field(default_factory=list)
     overall_score_avg: Optional[float]
     pass_rate: Optional[float]
     assessments_taken: int
@@ -23,6 +26,9 @@ class StudentDashboardResponse(BaseModel):
     score_trend: List[Dict]  # [{date, score, assessment_title}]
     subject_scores: List[Dict]  # [{subject, avg_score}]
     weak_topics: List[str]
+    topic_performance: List[Dict] = Field(default_factory=list)
+    comparison_summary: Optional[Dict] = None
+    insights: List[str] = Field(default_factory=list)
     recent_results: List[Dict]
 
 

@@ -9,8 +9,8 @@ interface Props {
 }
 
 export function MatchingQuestion({ question, value, onChange }: Props) {
-  const mapping = (value as Record<string, string> | undefined) ?? {};
-  const options = question.options ?? [];
+  const mapping = useMemo(() => (value as Record<string, string> | undefined) ?? {}, [value]);
+  const options = useMemo(() => question.options ?? [], [question.options]);
 
   const matchKeys = useMemo(() => {
     const keys = new Set<string>();

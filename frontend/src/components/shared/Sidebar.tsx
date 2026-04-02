@@ -5,9 +5,11 @@ import {
   FiHome,
   FiUsers,
   FiLayers,
+  FiBookOpen,
   FiBarChart2,
   FiClipboard,
   FiAward,
+  FiTrendingUp,
   FiChevronsLeft,
   FiChevronsRight,
 } from 'react-icons/fi';
@@ -23,6 +25,7 @@ const navByRole: Record<UserRole, NavItem[]> = {
   admin: [
     { to: '/admin', label: 'Dashboard', icon: <FiHome /> },
     { to: '/admin/users', label: 'Users', icon: <FiUsers /> },
+    { to: '/admin/curriculum', label: 'Curriculum', icon: <FiBookOpen /> },
     { to: '/admin/groups', label: 'Groups', icon: <FiLayers /> },
     { to: '/admin/reports', label: 'Reports', icon: <FiBarChart2 /> },
   ],
@@ -32,6 +35,7 @@ const navByRole: Record<UserRole, NavItem[]> = {
   ],
   student: [
     { to: '/student', label: 'Dashboard', icon: <FiHome /> },
+    { to: '/student/review', label: 'Review', icon: <FiTrendingUp /> },
     { to: '/student/results', label: 'Results', icon: <FiAward /> },
   ],
 };

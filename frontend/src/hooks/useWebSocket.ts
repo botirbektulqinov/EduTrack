@@ -21,8 +21,11 @@ export function useWebSocket({
   useEffect(() => {
     if (!enabled || !attemptId || !serverToken) return;
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${protocol}//${window.location.host}/ws/attempt/${attemptId}?token=${serverToken}`;
+    const configuredBase = import.meta.env.VITE_WS_BASE_URL as string | undefined;
+    const defaultBase =
+      `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
+    const wsBaseURL = (configuredBase || defaultBase).replace(/\/$/, '');
+    const url = `${wsBaseURL}/ws/attempt/${attemptId}?token=${serverToken}`;
     const ws = new WebSocket(url);
     wsRef.current = ws;
 

@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from app.models.assessment_attempt import AssessmentAttempt
     from app.models.group import Group
     from app.models.question import Question
+    from app.models.subject import Subject
     from app.models.user import User
     from app.models.violation import Violation
 
@@ -35,6 +36,9 @@ class Assessment(Base):
     # Ownership
     group_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("groups.id"), nullable=True,
+    )
+    subject_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("subjects.id"), nullable=True,
     )
     teacher_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
 
@@ -90,6 +94,7 @@ class Assessment(Base):
 
     # ── Relationships ──
     group: Mapped[Optional["Group"]] = relationship(back_populates="assessments")
+    curriculum_subject: Mapped[Optional["Subject"]] = relationship(back_populates="assessments")
     teacher: Mapped["User"] = relationship(back_populates="created_assessments", foreign_keys=[teacher_id])
     questions: Mapped[list["Question"]] = relationship(
         back_populates="assessment", cascade="all, delete-orphan",

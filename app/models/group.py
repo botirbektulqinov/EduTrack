@@ -15,6 +15,7 @@ from app.core.database import Base
 if TYPE_CHECKING:
     from app.models.assessment import Assessment
     from app.models.group_enrollment import GroupEnrollment
+    from app.models.subject import Subject
     from app.models.user import User
 
 
@@ -24,6 +25,9 @@ class Group(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(255))
     subject: Mapped[str] = mapped_column(String(255))
+    subject_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("subjects.id"), nullable=True,
+    )
     academic_year: Mapped[str] = mapped_column(String(20))
     semester: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -41,6 +45,7 @@ class Group(Base):
     )
 
     # ── Relationships ──
+    curriculum_subject: Mapped[Optional["Subject"]] = relationship(back_populates="groups")
     teacher: Mapped["User"] = relationship(back_populates="taught_groups", foreign_keys=[teacher_id])
     enrollments: Mapped[list["GroupEnrollment"]] = relationship(back_populates="group")
     assessments: Mapped[list["Assessment"]] = relationship(back_populates="group")

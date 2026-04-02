@@ -17,7 +17,9 @@ if TYPE_CHECKING:
     from app.models.assessment import Assessment
     from app.models.question_bank import QuestionBank
     from app.models.question_option import QuestionOption
+    from app.models.question_revision import QuestionRevision
     from app.models.student_answer import StudentAnswer
+    from app.models.topic import Topic
 
 
 QUESTION_TYPES = [
@@ -67,6 +69,9 @@ class Question(Base):
     # Ordering / metadata
     order_index: Mapped[int] = mapped_column(Integer, default=0)
     topic_tag: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    topic_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("topics.id"), nullable=True,
+    )
     difficulty: Mapped[str] = mapped_column(String(20), default="medium")
     blooms_level: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     time_suggestion_seconds: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
@@ -87,8 +92,14 @@ class Question(Base):
     # ── Relationships ──
     assessment: Mapped[Optional["Assessment"]] = relationship(back_populates="questions")
     question_bank: Mapped[Optional["QuestionBank"]] = relationship(back_populates="questions")
+    topic: Mapped[Optional["Topic"]] = relationship(back_populates="questions")
     options: Mapped[list["QuestionOption"]] = relationship(
         back_populates="question", cascade="all, delete-orphan",
+    )
+    revisions: Mapped[list["QuestionRevision"]] = relationship(
+        back_populates="question",
+        cascade="all, delete-orphan",
+        order_by="QuestionRevision.version_number.desc()",
     )
     student_answers: Mapped[list["StudentAnswer"]] = relationship(back_populates="question")
 

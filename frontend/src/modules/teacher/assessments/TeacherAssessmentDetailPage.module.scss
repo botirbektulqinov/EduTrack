@@ -113,6 +113,12 @@
   }
 }
 
+.helperText {
+  margin: 0;
+  color: $text-muted;
+  font-size: $fs-sm;
+}
+
 .formActions {
   display: flex;
   justify-content: flex-end;

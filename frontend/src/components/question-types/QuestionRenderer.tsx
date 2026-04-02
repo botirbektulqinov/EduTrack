@@ -1,4 +1,4 @@
-import type { Question } from '@/types';
+import type { CodeRunResult, Question } from '@/types';
 import { TrueFalseQuestion } from './TrueFalseQuestion';
 import { MCQSingleQuestion } from './MCQSingleQuestion';
 import { MCQMultiQuestion } from './MCQMultiQuestion';
@@ -18,9 +18,19 @@ export interface QuestionRendererProps {
   question: Question;
   value: unknown;
   onChange: (val: unknown) => void;
+  onRunCodePreview?: (questionId: string, codeSubmission: string) => Promise<CodeRunResult>;
+  codeRunResult?: CodeRunResult | null;
+  isRunningCode?: boolean;
 }
 
-export function QuestionRenderer({ question, value, onChange }: QuestionRendererProps) {
+export function QuestionRenderer({
+  question,
+  value,
+  onChange,
+  onRunCodePreview,
+  codeRunResult,
+  isRunningCode,
+}: QuestionRendererProps) {
   switch (question.question_type) {
     case 'true_false':
     case 'yes_no':
@@ -48,7 +58,16 @@ export function QuestionRenderer({ question, value, onChange }: QuestionRenderer
     case 'hotspot':
       return <HotspotQuestion question={question} value={value} onChange={onChange} />;
     case 'code':
-      return <CodeQuestion question={question} value={value} onChange={onChange} />;
+      return (
+        <CodeQuestion
+          question={question}
+          value={value}
+          onChange={onChange}
+          onRunCodePreview={onRunCodePreview}
+          runResult={codeRunResult}
+          isRunning={isRunningCode}
+        />
+      );
     case 'likert':
       return <LikertQuestion question={question} value={value} onChange={onChange} />;
     case 'audio_video':

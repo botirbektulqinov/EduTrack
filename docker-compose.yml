@@ -1,23 +1,22 @@
-# ------------------------------------------------------------------
-# EduTrack — Docker Compose (Development)
-# ------------------------------------------------------------------
-version: "3.9"
-
 services:
-  # ── FastAPI application ──
   api:
     build: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@postgres:5432/edu_track}
+      DATABASE_URL_SYNC: ${DATABASE_URL_SYNC:-postgresql+psycopg2://postgres:postgres@postgres:5432/edu_track}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-development}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-development}
+      ENVIRONMENT: development
+      DEBUG: true
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      BACKEND_URL: ${BACKEND_URL:-http://localhost:8000}
     ports:
       - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/edu_track
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/2
-      - ENVIRONMENT=development
-      - SECRET_KEY=change-me-in-production
-      - ACCESS_TOKEN_EXPIRE_MINUTES=30
-      - REFRESH_TOKEN_EXPIRE_DAYS=7
     depends_on:
       postgres:
         condition: service_healthy
@@ -25,26 +24,26 @@ services:
         condition: service_healthy
     volumes:
       - .:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 
-  # ── PostgreSQL ──
   postgres:
     image: postgres:15
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: edu_track
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-edu_track}
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
-  # ── Redis ──
   redis:
     image: redis:7-alpine
     ports:
@@ -53,18 +52,21 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 10
 
-  # ── Celery Worker ──
   celery_worker:
     build: .
-    command: celery -A app.workers.celery_app worker -l info
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/edu_track
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/2
-      - SECRET_KEY=change-me-in-production
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@postgres:5432/edu_track}
+      DATABASE_URL_SYNC: ${DATABASE_URL_SYNC:-postgresql+psycopg2://postgres:postgres@postgres:5432/edu_track}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-development}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-development}
+    command: celery -A app.workers.celery_app worker -l info
     depends_on:
       postgres:
         condition: service_healthy
@@ -73,16 +75,19 @@ services:
     volumes:
       - .:/app
 
-  # ── Celery Beat (Scheduler) ──
   celery_beat:
     build: .
-    command: celery -A app.workers.celery_app beat -l info
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/edu_track
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/2
-      - SECRET_KEY=change-me-in-production
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@postgres:5432/edu_track}
+      DATABASE_URL_SYNC: ${DATABASE_URL_SYNC:-postgresql+psycopg2://postgres:postgres@postgres:5432/edu_track}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-development}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-development}
+    command: celery -A app.workers.celery_app beat -l info
     depends_on:
       postgres:
         condition: service_healthy

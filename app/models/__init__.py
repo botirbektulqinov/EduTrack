@@ -6,11 +6,15 @@ Import all models here so Alembic can detect them.
 
 from app.models.user import User
 from app.models.department import Department
+from app.models.subject import Subject
+from app.models.curriculum_module import CurriculumModule
+from app.models.topic import Topic
 from app.models.group import Group
 from app.models.group_enrollment import GroupEnrollment
 from app.models.assessment import Assessment
 from app.models.question import Question
 from app.models.question_option import QuestionOption
+from app.models.question_revision import QuestionRevision
 from app.models.question_bank import QuestionBank
 from app.models.assessment_attempt import AssessmentAttempt
 from app.models.student_answer import StudentAnswer
@@ -22,11 +26,15 @@ from app.models.notification import Notification
 __all__ = [
     "User",
     "Department",
+    "Subject",
+    "CurriculumModule",
+    "Topic",
     "Group",
     "GroupEnrollment",
     "Assessment",
     "Question",
     "QuestionOption",
+    "QuestionRevision",
     "QuestionBank",
     "AssessmentAttempt",
     "StudentAnswer",

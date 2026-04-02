@@ -246,6 +246,12 @@ export default function TeacherAttemptDetailPage() {
                     )}
                     {answer.is_flagged && <Badge variant="danger">Flagged</Badge>}
                   </div>
+                  {answer.teacher_feedback && (
+                    <div className={styles.feedbackBox}>
+                      <strong>Feedback</strong>
+                      <p>{answer.teacher_feedback}</p>
+                    </div>
+                  )}
                 </div>
               );
             })}

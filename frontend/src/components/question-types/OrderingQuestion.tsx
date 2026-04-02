@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import type { Question } from '@/types';
 import s from './OrderingQuestion.module.scss';
 
@@ -10,23 +9,13 @@ interface Props {
 
 export function OrderingQuestion({ question, value, onChange }: Props) {
   const options = question.options ?? [];
-  const [order, setOrder] = useState<string[]>(() => {
-    if (Array.isArray(value) && value.length > 0) return value as string[];
-    return options.map((o) => o.id);
-  });
-
-  useEffect(() => {
-    if (Array.isArray(value) && value.length > 0) {
-      setOrder(value as string[]);
-    }
-  }, [value]);
+  const order = Array.isArray(value) && value.length > 0 ? (value as string[]) : options.map((option) => option.id);
 
   const move = (index: number, direction: -1 | 1) => {
     const target = index + direction;
     if (target < 0 || target >= order.length) return;
     const next = [...order];
     [next[index], next[target]] = [next[target], next[index]];
-    setOrder(next);
     onChange(next);
   };
 

@@ -1,4 +1,3 @@
-/* ─── Teacher: Assessment List Page ─── */
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -42,17 +41,23 @@ export default function TeacherAssessmentsPage() {
     },
   });
 
-  const assessments = (data ?? []).filter((a) => {
-    const matchesType = typeFilter ? a.assessment_type === typeFilter : true;
-    const matchesSearch = search
-      ? a.title.toLowerCase().includes(search.toLowerCase())
-      : true;
+  const assessments = (data ?? []).filter((assessment) => {
+    const matchesType = typeFilter ? assessment.assessment_type === typeFilter : true;
+    const haystack = [
+      assessment.title,
+      assessment.subject_name,
+      assessment.group_subject_name,
+      assessment.group_name,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    const matchesSearch = search ? haystack.includes(search.toLowerCase()) : true;
     return matchesType && matchesSearch;
   });
 
   return (
     <div className={styles.page}>
-      {/* Header */}
       <div className={styles.header}>
         <h1>Assessments</h1>
         <Link to="/teacher/assessments/new">
@@ -60,25 +65,19 @@ export default function TeacherAssessmentsPage() {
         </Link>
       </div>
 
-      {/* Filters */}
       <div className={styles.filters}>
         <div className={styles.searchWrap}>
           <FiSearch className={styles.searchIcon} />
           <input
             className={styles.searchInput}
-            placeholder="Search assessments…"
+            placeholder="Search assessments..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) => setSearch(event.target.value)}
           />
         </div>
-        <Select
-          options={TYPE_OPTIONS}
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-        />
+        <Select options={TYPE_OPTIONS} value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} />
       </div>
 
-      {/* Table */}
       {isLoading ? (
         <div className={styles.center}>
           <Spinner size="lg" />
@@ -94,6 +93,7 @@ export default function TeacherAssessmentsPage() {
           headers={[
             'Title',
             'Type',
+            'Subject',
             'Group',
             'Time Limit',
             'Status',
@@ -101,27 +101,28 @@ export default function TeacherAssessmentsPage() {
             'Available Until',
           ]}
         >
-          {assessments.map((a) => (
+          {assessments.map((assessment) => (
             <tr
-              key={a.id}
+              key={assessment.id}
               className={styles.row}
-              onClick={() => navigate(`/teacher/assessments/${a.id}`)}
+              onClick={() => navigate(`/teacher/assessments/${assessment.id}`)}
             >
-              <td>{a.title}</td>
+              <td>{assessment.title}</td>
               <td>
-                <Badge variant={TYPE_VARIANT[a.assessment_type]}>
-                  {a.assessment_type}
+                <Badge variant={TYPE_VARIANT[assessment.assessment_type]}>
+                  {assessment.assessment_type}
                 </Badge>
               </td>
-              <td>{a.group_name ?? '—'}</td>
-              <td>{a.time_limit_minutes ? `${a.time_limit_minutes} min` : '—'}</td>
+              <td>{assessment.subject_name ?? assessment.group_subject_name ?? '—'}</td>
+              <td>{assessment.group_name ?? '—'}</td>
+              <td>{assessment.time_limit_minutes ? `${assessment.time_limit_minutes} min` : '—'}</td>
               <td>
-                <Badge variant={a.is_published ? 'success' : 'neutral'}>
-                  {a.is_published ? 'Published' : 'Draft'}
+                <Badge variant={assessment.is_published ? 'success' : 'neutral'}>
+                  {assessment.is_published ? 'Published' : 'Draft'}
                 </Badge>
               </td>
-              <td>{a.available_from ? formatDateTime(a.available_from) : '—'}</td>
-              <td>{a.available_until ? formatDateTime(a.available_until) : '—'}</td>
+              <td>{assessment.available_from ? formatDateTime(assessment.available_from) : '—'}</td>
+              <td>{assessment.available_until ? formatDateTime(assessment.available_until) : '—'}</td>
             </tr>
           ))}
         </Table>

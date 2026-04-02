@@ -24,6 +24,8 @@ from app.schemas.attempt import (
     AttemptStartResponse,
     AttemptStatusResponse,
     BulkAnswerSaveRequest,
+    CodeRunRequest,
+    CodeRunResponse,
 )
 from app.schemas.question import QuestionStudentView, QuestionOptionStudentView
 from app.schemas.common import MessageResponse, SuccessResponse
@@ -122,16 +124,46 @@ async def start_attempt(
             rng = random.Random(hash(str(attempt.id) + str(q.id)))
             rng.shuffle(options)
 
-        # Sanitize config for student view (remove correct answers from config)
+        # Sanitize config for student view (remove answer keys / hidden cases)
         safe_config = None
         if q.config:
-            safe_config = {k: v for k, v in q.config.items() if k not in ("accepted_answers", "correct_value", "zones")}
+            safe_config = {
+                k: v for k, v in q.config.items()
+                if k not in (
+                    "accepted_answers",
+                    "correct_value",
+                    "zones",
+                    "hidden_test_cases",
+                    "test_cases",
+                )
+            }
             if q.question_type == "likert":
                 safe_config = q.config  # Likert config is fully visible
             if q.question_type == "numeric":
                 safe_config = {"unit": q.config.get("unit")}
             if q.question_type == "fill_blank":
                 safe_config = {"blank_count": len(q.config.get("blanks", []))}
+            if q.question_type == "code":
+                visible_test_cases = q.config.get("visible_test_cases")
+                if visible_test_cases is None:
+                    visible_test_cases = [
+                        {
+                            "input": test_case.get("input", ""),
+                            "output": test_case.get("output", ""),
+                        }
+                        for test_case in q.config.get("test_cases", [])
+                        if not test_case.get("is_hidden")
+                    ]
+
+                safe_config = {
+                    "language": q.config.get("language", "python"),
+                    "execution_mode": q.config.get("execution_mode", "stdin_stdout"),
+                    "function_name": q.config.get("function_name"),
+                    "starter_code": q.config.get("starter_code"),
+                    "visible_test_cases": visible_test_cases or [],
+                    "time_limit_seconds": q.config.get("time_limit_seconds", 2),
+                    "memory_limit_mb": q.config.get("memory_limit_mb"),
+                }
 
         question_views.append(QuestionStudentView(
             id=q.id,
@@ -251,6 +283,64 @@ async def submit_attempt(
         "grade": grading_result["grade"],
         "needs_manual_review": grading_result["needs_manual_review"],
     })
+
+
+@router.post("/attempts/{attempt_id}/questions/{question_id}/run-code", response_model=SuccessResponse)
+async def run_code_preview(
+    attempt_id: UUID,
+    question_id: UUID,
+    data: CodeRunRequest,
+    db: AsyncSession = Depends(get_db),
+    student: User = Depends(get_student_user),
+):
+    """Execute a code answer against visible test cases before final submission."""
+    attempt = (
+        await db.execute(
+            select(AssessmentAttempt)
+            .options(selectinload(AssessmentAttempt.assessment))
+            .where(
+                AssessmentAttempt.id == attempt_id,
+                AssessmentAttempt.student_id == student.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not attempt:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "ATTEMPT_NOT_FOUND", "message": "Attempt not found."},
+        )
+    if attempt.status != "in_progress":
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "ATTEMPT_NOT_ACTIVE", "message": "Code preview is only available during an active attempt."},
+        )
+
+    question = (
+        await db.execute(
+            select(Question)
+            .options(selectinload(Question.options))
+            .where(
+                Question.id == question_id,
+                Question.assessment_id == attempt.assessment_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not question or question.question_type != "code":
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "QUESTION_NOT_FOUND", "message": "Coding question not found for this attempt."},
+        )
+
+    grading_service = GradingService()
+    try:
+        result = grading_service.run_code_preview(question, data.code_submission)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "CODE_PREVIEW_UNAVAILABLE", "message": str(exc)},
+        ) from exc
+
+    return SuccessResponse(data=CodeRunResponse.model_validate(result))
 
 
 @router.get("/attempts/{attempt_id}/result", response_model=SuccessResponse)

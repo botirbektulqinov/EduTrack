@@ -8,12 +8,17 @@ from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
 
+from fastapi import HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.assessment import Assessment
+from app.models.curriculum_module import CurriculumModule
+from app.models.group import Group
 from app.models.question import Question
+from app.models.subject import Subject
+from app.models.topic import Topic
 from app.models.assessment_attempt import AssessmentAttempt
 from app.models.group_enrollment import GroupEnrollment
 from app.schemas.assessment import AssessmentCreate, AssessmentUpdate
@@ -22,14 +27,82 @@ from app.schemas.assessment import AssessmentCreate, AssessmentUpdate
 class AssessmentService:
 
     @staticmethod
+    async def _resolve_subject_context(
+        db: AsyncSession,
+        teacher_id: UUID,
+        group_id: UUID | None,
+        subject_id: UUID | None,
+    ) -> tuple[Group | None, UUID]:
+        group = None
+        subject = None
+
+        if group_id:
+            group = (
+                await db.execute(
+                    select(Group)
+                    .options(selectinload(Group.curriculum_subject))
+                    .where(Group.id == group_id)
+                )
+            ).scalar_one_or_none()
+            if not group:
+                raise HTTPException(
+                    status_code=404,
+                    detail={"code": "GROUP_NOT_FOUND", "message": "Group not found."},
+                )
+            if group.teacher_id != teacher_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail={"code": "AUTH_INSUFFICIENT_PERMISSIONS", "message": "Not your group."},
+                )
+
+        if subject_id:
+            subject = await db.get(Subject, subject_id)
+            if not subject:
+                raise HTTPException(
+                    status_code=404,
+                    detail={"code": "SUBJECT_NOT_FOUND", "message": "Subject not found."},
+                )
+
+        if group and group.subject_id:
+            if subject and subject.id != group.subject_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "code": "ASSESSMENT_SUBJECT_GROUP_MISMATCH",
+                        "message": "Selected subject must match the mapped subject of the selected group.",
+                    },
+                )
+            subject_id = group.subject_id
+        elif subject:
+            subject_id = subject.id
+
+        if not subject_id:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "ASSESSMENT_SUBJECT_REQUIRED",
+                    "message": "Assessment must be linked to a curriculum subject.",
+                },
+            )
+
+        return group, subject_id
+
+    @staticmethod
     async def create_assessment(db: AsyncSession, teacher_id: UUID, data: AssessmentCreate) -> Assessment:
         """Create a new assessment in DRAFT state."""
+        _, subject_id = await AssessmentService._resolve_subject_context(
+            db,
+            teacher_id,
+            data.group_id,
+            data.subject_id,
+        )
         assessment = Assessment(
             title=data.title,
             description=data.description,
             assessment_type=data.assessment_type,
             format_type=data.format_type,
             group_id=data.group_id,
+            subject_id=subject_id,
             teacher_id=teacher_id,
             time_limit_minutes=data.time_limit_minutes,
             available_from=data.available_from,
@@ -68,7 +141,9 @@ class AssessmentService:
             select(Assessment)
             .options(
                 selectinload(Assessment.questions).selectinload(Question.options),
-                selectinload(Assessment.group),
+                selectinload(Assessment.questions).selectinload(Question.topic).selectinload(Topic.module).selectinload(CurriculumModule.subject),
+                selectinload(Assessment.curriculum_subject),
+                selectinload(Assessment.group).selectinload(Group.curriculum_subject),
             )
             .where(Assessment.id == assessment_id)
         )
@@ -78,7 +153,12 @@ class AssessmentService:
     async def get_assessment_by_token(db: AsyncSession, token: UUID) -> Optional[Assessment]:
         result = await db.execute(
             select(Assessment)
-            .options(selectinload(Assessment.questions).selectinload(Question.options))
+            .options(
+                selectinload(Assessment.questions).selectinload(Question.options),
+                selectinload(Assessment.questions).selectinload(Question.topic).selectinload(Topic.module).selectinload(CurriculumModule.subject),
+                selectinload(Assessment.curriculum_subject),
+                selectinload(Assessment.group).selectinload(Group.curriculum_subject),
+            )
             .where(Assessment.access_token == token)
         )
         return result.scalar_one_or_none()
@@ -92,7 +172,12 @@ class AssessmentService:
     ) -> tuple[List[Assessment], int]:
         query = (
             select(Assessment)
-            .options(selectinload(Assessment.group), selectinload(Assessment.questions))
+            .options(
+                selectinload(Assessment.curriculum_subject),
+                selectinload(Assessment.group).selectinload(Group.curriculum_subject),
+                selectinload(Assessment.questions).selectinload(Question.options),
+                selectinload(Assessment.questions).selectinload(Question.topic).selectinload(Topic.module).selectinload(CurriculumModule.subject),
+            )
             .where(Assessment.teacher_id == teacher_id)
         )
         count_query = select(func.count(Assessment.id)).where(Assessment.teacher_id == teacher_id)
@@ -107,6 +192,16 @@ class AssessmentService:
     async def update_assessment(db: AsyncSession, assessment: Assessment, data: AssessmentUpdate) -> Assessment:
         update_data = data.model_dump(exclude_unset=True)
         proctoring = update_data.pop("proctoring", None)
+        next_group_id = update_data.pop("group_id", assessment.group_id)
+        next_subject_id = update_data.pop("subject_id", assessment.subject_id)
+        _, resolved_subject_id = await AssessmentService._resolve_subject_context(
+            db,
+            assessment.teacher_id,
+            next_group_id,
+            next_subject_id,
+        )
+        assessment.group_id = next_group_id
+        assessment.subject_id = resolved_subject_id
         for field, value in update_data.items():
             setattr(assessment, field, value)
         if proctoring:

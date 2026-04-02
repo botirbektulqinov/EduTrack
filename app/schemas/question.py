@@ -3,6 +3,7 @@ EduTrack — Question Schemas
 All 16 question types.
 """
 
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
@@ -53,6 +54,7 @@ class QuestionCreate(BaseModel):
     negative_marking: float = 0.0
     order_index: Optional[int] = None
     topic_tag: Optional[str] = None
+    topic_id: Optional[UUID] = None
     difficulty: Optional[str] = None
     blooms_level: Optional[str] = None
     time_suggestion_seconds: Optional[int] = None
@@ -83,6 +85,7 @@ class QuestionUpdate(BaseModel):
     negative_marking: Optional[float] = None
     order_index: Optional[int] = None
     topic_tag: Optional[str] = None
+    topic_id: Optional[UUID] = None
     difficulty: Optional[str] = None
     blooms_level: Optional[str] = None
     time_suggestion_seconds: Optional[int] = None
@@ -104,6 +107,12 @@ class QuestionResponse(BaseModel):
     negative_marking: float
     order_index: Optional[int]
     topic_tag: Optional[str]
+    topic_id: Optional[UUID]
+    topic_name: Optional[str] = None
+    module_id: Optional[UUID] = None
+    module_name: Optional[str] = None
+    subject_id: Optional[UUID] = None
+    subject_name: Optional[str] = None
     difficulty: Optional[str]
     blooms_level: Optional[str]
     time_suggestion_seconds: Optional[int]
@@ -128,3 +137,43 @@ class QuestionStudentView(BaseModel):
     options: List[QuestionOptionStudentView] = []
 
     model_config = {"from_attributes": True}
+
+
+class QuestionRevisionResponse(BaseModel):
+    id: UUID
+    question_id: UUID
+    version_number: int
+    source: str
+    summary: Optional[str] = None
+    snapshot: Dict[str, Any]
+    created_by_id: Optional[UUID] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class BulkQuestionPreviewItem(BaseModel):
+    index: int
+    is_valid: bool
+    question_type: Optional[str] = None
+    content_preview: Optional[str] = None
+    assessment_id: Optional[UUID] = None
+    assessment_title: Optional[str] = None
+    question_bank_id: Optional[UUID] = None
+    difficulty: Optional[str] = None
+    points: Optional[float] = None
+    topic_tag: Optional[str] = None
+    resolved_topic_id: Optional[UUID] = None
+    resolved_topic_name: Optional[str] = None
+    options_count: int = 0
+    visible_test_cases: int = 0
+    hidden_test_cases: int = 0
+    warnings: List[str] = []
+    errors: List[str] = []
+
+
+class BulkQuestionPreviewResponse(BaseModel):
+    total_items: int
+    valid_items: int
+    invalid_items: int
+    questions: List[BulkQuestionPreviewItem]

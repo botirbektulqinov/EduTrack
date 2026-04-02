@@ -108,6 +108,29 @@
   color: $text-muted;
 }
 
+.feedbackBox {
+  @include flex-col;
+  gap: $sp-1;
+  padding: $sp-3;
+  border: 1px solid $border;
+  border-radius: $radius;
+  background: rgba($primary, 0.04);
+
+  strong {
+    font-size: $fs-xs;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: $text-muted;
+  }
+
+  p {
+    margin: 0;
+    font-size: $fs-sm;
+    color: $text;
+    line-height: 1.6;
+  }
+}
+
 /* ── Grading Form ── */
 .gradeForm {
   @include flex-col;

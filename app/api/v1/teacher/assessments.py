@@ -7,11 +7,14 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.api.deps import get_teacher_user
 from app.models.user import User
 from app.models.group import Group
+from app.models.subject import Subject
+from app.schemas.question import QuestionResponse
 from app.schemas.assessment import (
     AssessmentCreate,
     AssessmentListResponse,
@@ -21,6 +24,7 @@ from app.schemas.assessment import (
 from app.schemas.common import MessageResponse, PaginationMeta, SuccessResponse
 from app.services.assessment_service import AssessmentService
 from app.services.audit_service import AuditService
+from app.services.curriculum_service import CurriculumService
 
 router = APIRouter(tags=["Teacher - Assessments"])
 
@@ -29,8 +33,31 @@ def _enrich_response(assessment) -> AssessmentResponse:
     """Convert ORM assessment to AssessmentResponse with group_name and question_count."""
     resp = AssessmentResponse.model_validate(assessment)
     resp.group_name = assessment.group.name if assessment.group else None
+    resp.subject_id = CurriculumService.assessment_subject_id(assessment)
+    resp.subject_name = CurriculumService.assessment_subject_name(assessment)
+    resp.group_subject_id = assessment.group.subject_id if assessment.group else None
+    resp.group_subject_name = CurriculumService.group_subject_name(assessment.group)
     resp.question_count = len(assessment.questions) if assessment.questions else 0
+    resp.questions = [_serialize_question(question) for question in assessment.questions]
     return resp
+
+
+def _serialize_question(question) -> QuestionResponse:
+    payload = QuestionResponse.model_validate(question)
+    payload.topic_name = question.topic.name if question.topic else question.topic_tag
+    payload.module_id = question.topic.module_id if question.topic and question.topic.module else None
+    payload.module_name = question.topic.module.name if question.topic and question.topic.module else None
+    payload.subject_id = (
+        question.topic.module.subject_id
+        if question.topic and question.topic.module
+        else None
+    )
+    payload.subject_name = (
+        question.topic.module.subject.name
+        if question.topic and question.topic.module and question.topic.module.subject
+        else None
+    )
+    return payload
 
 
 @router.get("/groups", response_model=SuccessResponse)
@@ -40,11 +67,42 @@ async def list_teacher_groups(
 ):
     """List groups owned by this teacher (for assessment creation)."""
     result = await db.execute(
-        select(Group).where(Group.teacher_id == teacher.id, Group.is_archived == False)
+        select(Group)
+        .options(selectinload(Group.curriculum_subject))
+        .where(Group.teacher_id == teacher.id, Group.is_archived == False)
     )
     groups = result.scalars().all()
     return SuccessResponse(
-        data=[{"id": str(g.id), "name": g.name, "subject": g.subject} for g in groups],
+        data=[
+            {
+                "id": str(g.id),
+                "name": g.name,
+                "subject": g.subject,
+                "subject_id": str(g.subject_id) if g.subject_id else None,
+                "subject_name": CurriculumService.group_subject_name(g),
+            }
+            for g in groups
+        ],
+    )
+
+
+@router.get("/subjects", response_model=SuccessResponse)
+async def list_curriculum_subjects(
+    db: AsyncSession = Depends(get_db),
+    teacher: User = Depends(get_teacher_user),
+):
+    subjects = (
+        await db.execute(select(Subject).order_by(Subject.name))
+    ).scalars().all()
+    return SuccessResponse(
+        data=[
+            {
+                "id": str(subject.id),
+                "name": subject.name,
+                "code": subject.code,
+            }
+            for subject in subjects
+        ],
     )
 
 
@@ -63,6 +121,10 @@ async def list_assessments(
     for a in assessments:
         item = AssessmentListResponse.model_validate(a)
         item.group_name = a.group.name if a.group else None
+        item.subject_id = CurriculumService.assessment_subject_id(a)
+        item.subject_name = CurriculumService.assessment_subject_name(a)
+        item.group_subject_id = a.group.subject_id if a.group else None
+        item.group_subject_name = CurriculumService.group_subject_name(a.group)
         item.question_count = len(a.questions) if a.questions else 0
         items.append(item)
     return SuccessResponse(

@@ -18,7 +18,9 @@ import type {
   Assessment,
   Question,
   AssessmentAttempt,
+  CodeRunResult,
   ViolationEvent,
+  ViolationType,
   WSServerMessage,
   ProctoringConfig,
 } from '@/types';
@@ -26,6 +28,16 @@ import styles from './AssessmentTakePage.module.scss';
 
 type Phase = 'loading' | 'preview' | 'active' | 'submitted' | 'terminated' | 'error';
 type SubmitConfirm = { open: boolean; message: string };
+
+interface ProctoringDebugControls {
+  simulateViolation?: (type: ViolationType) => void;
+}
+
+declare global {
+  interface Window {
+    __EDUTRACK_PROCTORING?: ProctoringDebugControls;
+  }
+}
 
 export default function AssessmentTakePage() {
   const { token } = useParams<{ token: string }>();
@@ -40,9 +52,13 @@ export default function AssessmentTakePage() {
   const [flagged, setFlagged] = useState<Set<string>>(new Set());
   const [violationCount, setViolationCount] = useState(0);
   const [violationWarning, setViolationWarning] = useState<{ open: boolean; count?: number; message?: string }>({ open: false });
+  const [runningCodeQuestionId, setRunningCodeQuestionId] = useState<string | null>(null);
+  const [codeRunResults, setCodeRunResults] = useState<Record<string, CodeRunResult>>({});
 
   const answersRef = useRef(answers);
   answersRef.current = answers;
+  const recentViolationToastsRef = useRef<Record<string, number>>({});
+  const wsSendRef = useRef<(message: { type: string; [key: string]: unknown }) => void>(() => undefined);
 
   /* ── Validate token ── */
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -195,11 +211,11 @@ export default function AssessmentTakePage() {
         maxViolations: assessment.max_violations,
         timePenaltyMinutes: assessment.time_penalty_minutes,
         enforceFullscreen: assessment.enforce_fullscreen,
-        blockKeyboardShortcuts: true,
-        tabSwitchDetection: true,
-        devToolsDetection: true,
-        rightClickBlock: true,
-        copyPasteBlock: true,
+        blockKeyboardShortcuts: assessment.block_keyboard_shortcuts,
+        tabSwitchDetection: assessment.tab_switch_detection,
+        devToolsDetection: assessment.devtools_detection,
+        rightClickBlock: assessment.right_click_block,
+        copyPasteBlock: assessment.copy_paste_block,
       }
     : {
         maxViolations: 3,
@@ -219,9 +235,7 @@ export default function AssessmentTakePage() {
 
       // Debounce duplicate toast messages for the same violation type
       const key = `violation:${event.type}:${event.count}`;
-      // store recent toast timestamps in a ref-like closure (module-scope simple cache)
-      (handleViolation as any)._recentToasts = (handleViolation as any)._recentToasts ?? {};
-      const recent = (handleViolation as any)._recentToasts as Record<string, number>;
+      const recent = recentViolationToastsRef.current;
       const now = Date.now();
       if (!recent[key] || now - recent[key] > 1500) {
         recent[key] = now;
@@ -234,7 +248,7 @@ export default function AssessmentTakePage() {
       }
 
       // Report to server via WebSocket
-      wsSend({
+      wsSendRef.current({
         type: 'VIOLATION',
         violation_type: event.type,
         time_remaining: remaining,
@@ -249,8 +263,7 @@ export default function AssessmentTakePage() {
         });
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [assessment, remaining],
+    [assessment, deductTime, proctoringConfig.maxViolations, remaining],
   );
 
   const handleTerminate = useCallback(() => {
@@ -305,7 +318,6 @@ export default function AssessmentTakePage() {
           break;
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [syncTime, deductTime, safeSubmit],
   );
 
@@ -315,6 +327,10 @@ export default function AssessmentTakePage() {
     onMessage: handleWSMessage,
     enabled: phase === 'active' && !!attempt,
   });
+
+  useEffect(() => {
+    wsSendRef.current = wsSend;
+  }, [wsSend]);
 
   /* ── Heartbeat ── */
   useEffect(() => {
@@ -329,6 +345,34 @@ export default function AssessmentTakePage() {
   const handleAnswerChange = useCallback((questionId: string, data: unknown) => {
     setAnswers((prev) => ({ ...prev, [questionId]: data }));
   }, []);
+
+  const runCodePreview = useCallback(
+    async (questionId: string, codeSubmission: string) => {
+      if (!attempt) {
+        throw new Error('Attempt is not active.');
+      }
+      setRunningCodeQuestionId(questionId);
+      try {
+        const res = await api.post(`/student/attempts/${attempt.id}/questions/${questionId}/run-code`, {
+          code_submission: codeSubmission,
+        });
+        const result = (res.data.data ?? res.data) as CodeRunResult;
+        setCodeRunResults((prev) => ({ ...prev, [questionId]: result }));
+        return result;
+      } catch (err) {
+        const axiosErr = err as { response?: { data?: { detail?: { message?: string }; message?: string } } };
+        toast.error(
+          axiosErr.response?.data?.detail?.message ??
+          axiosErr.response?.data?.message ??
+          'Failed to run visible test cases.',
+        );
+        throw err;
+      } finally {
+        setRunningCodeQuestionId(null);
+      }
+    },
+    [attempt],
+  );
 
   /* ── Flag toggle ── */
   const toggleFlag = useCallback((questionId: string) => {
@@ -502,21 +546,21 @@ export default function AssessmentTakePage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => (window as any).__EDUTRACK_PROCTORING?.simulateViolation('FULLSCREEN_EXIT')}
+            onClick={() => window.__EDUTRACK_PROCTORING?.simulateViolation?.('FULLSCREEN_EXIT')}
           >
             Simulate Fullscreen Exit
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => (window as any).__EDUTRACK_PROCTORING?.simulateViolation('TAB_SWITCH')}
+            onClick={() => window.__EDUTRACK_PROCTORING?.simulateViolation?.('TAB_SWITCH')}
           >
             Simulate Tab Switch
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => (window as any).__EDUTRACK_PROCTORING?.simulateViolation('DEVTOOLS_DETECTED')}
+            onClick={() => window.__EDUTRACK_PROCTORING?.simulateViolation?.('DEVTOOLS_DETECTED')}
           >
             Simulate DevTools
           </Button>
@@ -524,8 +568,10 @@ export default function AssessmentTakePage() {
             variant="ghost"
             size="sm"
             onClick={() => {
-              const seq = ['TAB_SWITCH', 'FULLSCREEN_EXIT', 'DEVTOOLS_DETECTED'];
-              seq.forEach((t, i) => setTimeout(() => (window as any).__EDUTRACK_PROCTORING?.simulateViolation(t), i * 600));
+              const seq: ViolationType[] = ['TAB_SWITCH', 'FULLSCREEN_EXIT', 'DEVTOOLS_DETECTED'];
+              seq.forEach((violationType, index) => {
+                setTimeout(() => window.__EDUTRACK_PROCTORING?.simulateViolation?.(violationType), index * 600);
+              });
             }}
           >
             Simulate Sequence
@@ -547,6 +593,9 @@ export default function AssessmentTakePage() {
                 question={currentQuestion}
                 value={answers[currentQuestion.id]}
                 onChange={(val) => handleAnswerChange(currentQuestion.id, val)}
+                onRunCodePreview={runCodePreview}
+                codeRunResult={codeRunResults[currentQuestion.id] ?? null}
+                isRunningCode={runningCodeQuestionId === currentQuestion.id}
               />
               <div className={styles.questionActions}>
                 <Button

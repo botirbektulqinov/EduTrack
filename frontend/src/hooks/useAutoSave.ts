@@ -17,7 +17,10 @@ export function useAutoSave({
 }: UseAutoSaveOptions) {
   const lastSavedRef = useRef<Date | null>(null);
   const saveFnRef = useRef(saveFn);
-  saveFnRef.current = saveFn;
+
+  useEffect(() => {
+    saveFnRef.current = saveFn;
+  }, [saveFn]);
 
   useEffect(() => {
     if (!enabled) return;

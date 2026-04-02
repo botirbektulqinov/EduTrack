@@ -118,6 +118,28 @@ class BulkAnswerSaveRequest(BaseModel):
     answers: List[AnswerSaveRequest]
 
 
+class CodeRunRequest(BaseModel):
+    code_submission: str
+
+
+class CodeRunCaseResponse(BaseModel):
+    index: int
+    input: str
+    expected_output: str
+    actual_output: str
+    passed: bool
+    error: Optional[str] = None
+
+
+class CodeRunResponse(BaseModel):
+    language: str
+    execution_mode: str
+    passed_cases: int
+    total_cases: int
+    feedback: str
+    cases: List[CodeRunCaseResponse]
+
+
 # ── Grading ──
 
 class ManualGradeRequest(BaseModel):

@@ -14,7 +14,6 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
-    hash_password,
     verify_password,
 )
 from app.api.deps import get_current_user
@@ -28,6 +27,7 @@ from app.schemas.auth import (
     UserProfileResponse,
 )
 from app.schemas.common import MessageResponse
+from app.services.password_reset_service import PasswordResetService
 from app.services.user_service import UserService
 from app.services.audit_service import AuditService
 
@@ -123,20 +123,31 @@ async def forgot_password(data: ForgotPasswordRequest, db: AsyncSession = Depend
     user = await UserService.get_user_by_email(db, data.email)
     # Always return success to prevent email enumeration
     if user:
-        # TODO: Generate reset token and send email via Celery worker
-        pass
+        await PasswordResetService.send_reset_instructions(user)
+        await AuditService.log(db, action="PASSWORD_RESET_REQUESTED", actor_id=user.id, actor_role=user.role)
     return MessageResponse(message="If the email exists, a reset link has been sent.")
 
 
 @router.post("/reset-password", response_model=MessageResponse)
 async def reset_password(data: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
     """Reset password using a token from email."""
-    # TODO: Validate the reset token from Redis/DB
-    # For now, placeholder
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail={"code": "NOT_IMPLEMENTED", "message": "Password reset via token not yet implemented."},
-    )
+    user_id = await PasswordResetService.consume_token(data.token)
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "AUTH_TOKEN_EXPIRED", "message": "Invalid or expired reset token."},
+        )
+
+    user = await UserService.get_user_by_id(db, user_id)
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "AUTH_INVALID_CREDENTIALS", "message": "User not found or inactive."},
+        )
+
+    await UserService.reset_password(db, user, data.new_password)
+    await AuditService.log(db, action="PASSWORD_RESET_COMPLETED", actor_id=user.id, actor_role=user.role)
+    return MessageResponse(message="Password reset successfully.")
 
 
 @router.post("/change-password", response_model=MessageResponse)

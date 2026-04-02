@@ -1,23 +1,325 @@
+@use '../../../styles/variables' as *;
+
 .page {
-  padding: 1rem;
-}
-.grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
+  gap: $sp-5;
+  padding: $sp-4;
 }
-.table {
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
+  gap: $sp-4;
+  padding: $sp-6;
+  border: 1px solid var(--border);
+  border-radius: $radius-xl;
+  background:
+    radial-gradient(circle at top right, rgba(79, 70, 229, 0.14), transparent 35%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.02), rgba(20, 184, 166, 0.08)),
+    var(--bg-card);
+}
+
+.heroCopy {
+  display: grid;
+  gap: $sp-3;
+
+  h1 {
+    margin: 0;
+    font-size: clamp(1.8rem, 3vw, 2.5rem);
+    color: var(--text-heading);
+  }
+
+  p {
+    margin: 0;
+    max-width: 60ch;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+}
+
+.heroControls {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: $sp-4;
+}
+
+.metricCard {
+  display: flex;
+  gap: $sp-3;
+  align-items: flex-start;
+  padding: $sp-4;
+  border: 1px solid var(--border);
+  border-radius: $radius-lg;
+  background: var(--bg-card);
+  box-shadow: $shadow-sm;
+}
+
+.metricIcon {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.85rem;
+  background: rgba(79, 70, 229, 0.12);
+  color: $primary;
+}
+
+.metricValue {
+  font-size: 1.5rem;
+  font-weight: $fw-bold;
+  color: var(--text-heading);
+}
+
+.metricLabel {
+  font-size: $fs-sm;
+  font-weight: $fw-semibold;
+  color: var(--text-heading);
+}
+
+.metricHint {
+  margin-top: $sp-1;
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.twoCol {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-4;
+}
+
+.cardStretch {
+  min-height: 100%;
+}
+
+.chartWrap,
+.chartWrapSmall {
   width: 100%;
-  border-collapse: collapse;
 }
-.table th, .table td {
-  padding: 0.5rem;
-  border-bottom: 1px solid #eee;
-  text-align: left;
+
+.comparisonGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $sp-3;
 }
+
+.comparisonBlock {
+  display: grid;
+  gap: $sp-1;
+  padding: $sp-3;
+  border-radius: $radius-lg;
+  background: rgba(15, 23, 42, 0.03);
+
+  strong {
+    font-size: 1.15rem;
+    color: var(--text-heading);
+  }
+}
+
+.comparisonLabel {
+  font-size: $fs-xs;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.insightBanner {
+  display: flex;
+  align-items: center;
+  gap: $sp-2;
+  margin-top: $sp-4;
+  padding: $sp-3 $sp-4;
+  border-radius: $radius-lg;
+  background: rgba(20, 184, 166, 0.1);
+  color: #0f766e;
+  font-weight: $fw-medium;
+}
+
+.subjectList,
+.topicList,
+.resultList {
+  display: grid;
+  gap: $sp-3;
+}
+
+.subjectItem,
+.topicItem,
+.resultItem {
+  padding: $sp-3;
+  border: 1px solid var(--border);
+  border-radius: $radius-lg;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(15, 23, 42, 0.02));
+}
+
+.subjectHeader,
+.topicHeader,
+.resultItem {
+  display: flex;
+  justify-content: space-between;
+  gap: $sp-3;
+  align-items: flex-start;
+}
+
+.subjectName,
+.topicName,
+.resultTitle {
+  font-weight: $fw-semibold;
+  color: var(--text-heading);
+}
+
+.subjectMeta,
+.topicMeta,
+.resultMeta {
+  margin-top: $sp-1;
+  font-size: $fs-sm;
+  color: var(--text-muted);
+}
+
+.subjectBars {
+  display: grid;
+  gap: $sp-3;
+  margin-top: $sp-3;
+}
+
+.barLegend {
+  display: inline-block;
+  margin-bottom: $sp-1;
+  font-size: $fs-xs;
+  color: var(--text-muted);
+}
+
+.barTrack,
+.barTrackMuted {
+  width: 100%;
+  height: 0.65rem;
+  overflow: hidden;
+  border-radius: $radius-full;
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.barFill,
+.barFillMuted {
+  height: 100%;
+  border-radius: inherit;
+}
+
+.barFillMuted {
+  background: linear-gradient(90deg, #14b8a6, #2dd4bf);
+}
+
+.subjectFooter,
+.topicFooter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-3;
+  margin-top: $sp-3;
+  font-size: $fs-sm;
+  color: var(--text-muted);
+}
+
+.weakTopics {
+  margin-top: $sp-4;
+  padding-top: $sp-4;
+  border-top: 1px solid var(--border);
+
+  h4 {
+    margin: 0 0 $sp-2;
+    color: var(--text-heading);
+  }
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $sp-2;
+}
+
+.insightList {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: $sp-3;
+
+  li {
+    color: var(--text);
+    line-height: 1.6;
+  }
+}
+
+.resultScoreWrap {
+  display: grid;
+  justify-items: end;
+  gap: $sp-2;
+}
+
+.resultScore {
+  font-size: 1.1rem;
+  font-weight: $fw-bold;
+}
+
+.scopeNotes {
+  display: grid;
+  gap: $sp-3;
+
+  div {
+    display: flex;
+    gap: $sp-2;
+    align-items: center;
+    color: var(--text);
+  }
+}
+
+.empty,
+.emptyInline {
+  margin: 0;
+  color: var(--text-muted);
+}
+
 .center {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
+  min-height: 240px;
+}
+
+@media (max-width: 1100px) {
+  .metricsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .twoCol,
+  .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .heroControls {
+    justify-content: stretch;
+  }
+}
+
+@media (max-width: 720px) {
+  .page {
+    padding: $sp-3;
+  }
+
+  .metricsGrid,
+  .comparisonGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .subjectHeader,
+  .topicHeader,
+  .resultItem {
+    flex-direction: column;
+  }
+
+  .resultScoreWrap {
+    justify-items: start;
+  }
 }

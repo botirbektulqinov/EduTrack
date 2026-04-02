@@ -7,6 +7,7 @@ Usage:
 """
 
 import asyncio
+import sys
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -20,6 +21,9 @@ from app.models.group_enrollment import GroupEnrollment
 from app.models.assessment import Assessment
 from app.models.question import Question
 from app.models.question_option import QuestionOption
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 
 NOW = datetime.now(timezone.utc)
 
@@ -634,7 +638,7 @@ async def seed() -> None:
 
         await session.commit()
 
-    print("\n✅ Seed complete.")
+    print("\nSeed complete.")
     print("\nCredentials:")
     for u in SEED_USERS:
         print(f"  {u['role']:>8}  {u['email']}  /  {u['password']}")

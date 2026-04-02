@@ -1,28 +1,27 @@
-/* ─── Admin: Group Management Page ─── */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
-import { FiPlus, FiSearch, FiLayers } from 'react-icons/fi';
+import { FiLayers, FiPlus, FiSearch } from 'react-icons/fi';
 import api from '@/lib/api';
-import type { Group, User, PaginationMeta } from '@/types';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
-import Select from '@/components/ui/Select';
-import Table from '@/components/ui/Table';
+import type { CurriculumTree, Group, PaginationMeta, User } from '@/types';
 import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
+import EmptyState from '@/components/ui/EmptyState';
+import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import Pagination from '@/components/ui/Pagination';
+import Select from '@/components/ui/Select';
 import Spinner from '@/components/ui/Spinner';
-import EmptyState from '@/components/ui/EmptyState';
+import Table from '@/components/ui/Table';
 import styles from './AdminGroupsPage.module.scss';
 
-/* ── Zod schema ── */
 const createGroupSchema = z.object({
   name: z.string().min(2, 'Name is required'),
+  subject_id: z.string().optional(),
   subject: z.string().optional(),
   academic_year: z.string().optional(),
   semester: z.string().optional(),
@@ -46,7 +45,6 @@ export default function AdminGroupsPage() {
   const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
 
-  /* ── Fetch groups ── */
   const { data, isLoading } = useQuery({
     queryKey: ['admin-groups', search, page],
     queryFn: async () => {
@@ -57,11 +55,6 @@ export default function AdminGroupsPage() {
     },
   });
 
-  const groups = data?.data ?? [];
-  const meta = data?.meta;
-  const totalPages = meta?.total_pages ?? (meta ? Math.ceil(meta.total / meta.per_page) : 1);
-
-  /* ── Fetch teachers for select ── */
   const { data: teacherData } = useQuery({
     queryKey: ['admin-teachers'],
     queryFn: async () => {
@@ -71,31 +64,53 @@ export default function AdminGroupsPage() {
     enabled: modalOpen,
   });
 
+  const { data: curriculumData } = useQuery({
+    queryKey: ['admin-curriculum-tree'],
+    queryFn: async () => {
+      const res = await api.get('/admin/curriculum/tree');
+      return (res.data.data ?? res.data) as CurriculumTree;
+    },
+    enabled: modalOpen,
+  });
+
+  const groups = data?.data ?? [];
+  const meta = data?.meta;
+  const totalPages = meta?.total_pages ?? (meta ? Math.ceil(meta.total / meta.per_page) : 1);
+
   const teacherOptions = [
     { value: '', label: 'No teacher assigned' },
-    ...(teacherData ?? []).map((t) => ({ value: t.id, label: t.full_name })),
+    ...(teacherData ?? []).map((teacher) => ({ value: teacher.id, label: teacher.full_name })),
+  ];
+  const subjectOptions = [
+    { value: '', label: 'Use legacy subject text' },
+    ...((curriculumData?.subjects ?? []).map((subject) => ({
+      value: subject.id,
+      label: subject.name,
+    }))),
   ];
 
-  /* ── Create group mutation ── */
   const createMutation = useMutation({
     mutationFn: (payload: CreateGroupForm) => {
       const body = {
         ...payload,
         teacher_id: payload.teacher_id || undefined,
+        subject_id: payload.subject_id || undefined,
+        subject: payload.subject || undefined,
       };
       return api.post('/admin/groups', body);
     },
     onSuccess: () => {
       toast.success('Group created successfully');
       queryClient.invalidateQueries({ queryKey: ['admin-groups'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-curriculum-review-queue'] });
       setModalOpen(false);
       reset();
     },
     onError: (err: unknown) => {
-      const msg =
+      const message =
         (err as { response?: { data?: { message?: string } } }).response?.data?.message ||
         'Failed to create group';
-      toast.error(msg);
+      toast.error(message);
     },
   });
 
@@ -106,13 +121,17 @@ export default function AdminGroupsPage() {
     formState: { errors },
   } = useForm<CreateGroupForm>({
     resolver: zodResolver(createGroupSchema),
+    defaultValues: {
+      subject_id: '',
+      subject: '',
+      teacher_id: '',
+    },
   });
 
   const onSubmit = (formData: CreateGroupForm) => createMutation.mutate(formData);
 
   return (
     <div className={styles.page}>
-      {/* Header */}
       <div className={styles.header}>
         <h1 className={styles.title}>Groups</h1>
         <Button icon={<FiPlus />} onClick={() => setModalOpen(true)}>
@@ -120,23 +139,21 @@ export default function AdminGroupsPage() {
         </Button>
       </div>
 
-      {/* Filters */}
       <div className={styles.filters}>
         <div className={styles.searchWrap}>
           <FiSearch className={styles.searchIcon} />
           <input
             className={styles.searchInput}
-            placeholder="Search groups…"
+            placeholder="Search groups..."
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
+            onChange={(event) => {
+              setSearch(event.target.value);
               setPage(1);
             }}
           />
         </div>
       </div>
 
-      {/* Table */}
       {isLoading ? (
         <div className={styles.center}>
           <Spinner size="lg" />
@@ -150,21 +167,21 @@ export default function AdminGroupsPage() {
       ) : (
         <>
           <Table headers={['Name', 'Subject', 'Year', 'Semester', 'Teacher', 'Students', 'Status']}>
-            {groups.map((g) => (
+            {groups.map((group) => (
               <tr
-                key={g.id}
+                key={group.id}
                 className={styles.row}
-                onClick={() => navigate(`/admin/groups/${g.id}`)}
+                onClick={() => navigate(`/admin/groups/${group.id}`)}
               >
-                <td>{g.name}</td>
-                <td>{g.subject ?? '—'}</td>
-                <td>{g.academic_year ?? '—'}</td>
-                <td>{g.semester ?? '—'}</td>
-                <td>{g.teacher_name ?? '—'}</td>
-                <td>{g.student_count ?? '—'}</td>
+                <td>{group.name}</td>
+                <td>{group.subject_name ?? group.subject ?? '-'}</td>
+                <td>{group.academic_year ?? '-'}</td>
+                <td>{group.semester ?? '-'}</td>
+                <td>{group.teacher_name ?? '-'}</td>
+                <td>{group.student_count ?? '-'}</td>
                 <td>
-                  <Badge variant={g.is_archived ? 'neutral' : 'success'}>
-                    {g.is_archived ? 'Archived' : 'Active'}
+                  <Badge variant={group.is_archived ? 'neutral' : 'success'}>
+                    {group.is_archived ? 'Archived' : 'Active'}
                   </Badge>
                 </td>
               </tr>
@@ -175,7 +192,6 @@ export default function AdminGroupsPage() {
         </>
       )}
 
-      {/* Create Group Modal */}
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Create Group" size="md">
         <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
           <Input
@@ -184,9 +200,16 @@ export default function AdminGroupsPage() {
             error={errors.name?.message}
             {...register('name')}
           />
+          <Select
+            label="Curriculum Subject"
+            options={subjectOptions}
+            error={errors.subject_id?.message}
+            {...register('subject_id')}
+          />
           <Input
-            label="Subject"
+            label="Legacy Subject / Display Name"
             placeholder="Computer Science"
+            helperText="Optional when a curriculum subject is selected."
             error={errors.subject?.message}
             {...register('subject')}
           />

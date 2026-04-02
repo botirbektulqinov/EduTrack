@@ -2,7 +2,7 @@
 EduTrack — Admin: Group Management API
 """
 
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -25,6 +25,7 @@ from app.schemas.group import (
 )
 from app.schemas.common import MessageResponse, PaginationMeta, SuccessResponse
 from app.services.audit_service import AuditService
+from app.services.curriculum_service import CurriculumService
 
 router = APIRouter(tags=["Admin - Groups"])
 
@@ -39,7 +40,7 @@ async def list_groups(
     admin: User = Depends(get_admin_user),
 ):
     """List all academic groups with teacher name and student count."""
-    query = select(Group).options(selectinload(Group.teacher))
+    query = select(Group).options(selectinload(Group.teacher), selectinload(Group.curriculum_subject))
     count_query = select(func.count(Group.id))
 
     if is_archived is not None:
@@ -74,6 +75,7 @@ async def list_groups(
     for g in groups:
         d = GroupDetailResponse(
             **GroupResponse.model_validate(g).model_dump(),
+            subject_name=CurriculumService.group_subject_name(g),
             teacher_name=g.teacher.full_name if g.teacher else None,
             student_count=count_map.get(g.id, 0),
         )
@@ -97,9 +99,22 @@ async def create_group(
     admin: User = Depends(get_admin_user),
 ):
     """Create a new academic group."""
+    subject = await CurriculumService.resolve_group_subject(db, data.subject_id, data.subject)
+    if data.subject_id and not subject:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "SUBJECT_NOT_FOUND", "message": "Subject not found."},
+        )
+    if not subject and not (data.subject or "").strip():
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "SUBJECT_REQUIRED", "message": "Provide a curriculum subject or a legacy subject name."},
+        )
+
     group = Group(
         name=data.name,
-        subject=data.subject,
+        subject=(subject.name if subject else (data.subject or "")).strip(),
+        subject_id=subject.id if subject else None,
         academic_year=data.academic_year,
         semester=data.semester,
         description=data.description,
@@ -107,7 +122,13 @@ async def create_group(
     )
     db.add(group)
     await db.flush()
-    await db.refresh(group)
+    group = (
+        await db.execute(
+            select(Group)
+            .options(selectinload(Group.curriculum_subject))
+            .where(Group.id == group.id)
+        )
+    ).scalar_one()
 
     await AuditService.log(
         db,
@@ -117,7 +138,9 @@ async def create_group(
         target_type="Group",
         target_id=group.id,
     )
-    return SuccessResponse(data=GroupResponse.model_validate(group))
+    payload = GroupResponse.model_validate(group)
+    payload.subject_name = CurriculumService.group_subject_name(group)
+    return SuccessResponse(data=payload)
 
 
 @router.get("/{group_id}", response_model=SuccessResponse)
@@ -128,7 +151,9 @@ async def get_group(
 ):
     """Get group details."""
     result = await db.execute(
-        select(Group).options(selectinload(Group.teacher)).where(Group.id == group_id)
+        select(Group)
+        .options(selectinload(Group.teacher), selectinload(Group.curriculum_subject))
+        .where(Group.id == group_id)
     )
     group = result.scalar_one_or_none()
     if not group:
@@ -148,6 +173,7 @@ async def get_group(
 
     data = GroupDetailResponse(
         **GroupResponse.model_validate(group).model_dump(),
+        subject_name=CurriculumService.group_subject_name(group),
         teacher_name=group.teacher.full_name if group.teacher else None,
         student_count=student_count,
     )
@@ -171,12 +197,39 @@ async def update_group(
         )
 
     update_data = data.model_dump(exclude_unset=True)
+    if "subject_id" in update_data or "subject" in update_data:
+        subject = await CurriculumService.resolve_group_subject(
+            db,
+            update_data.get("subject_id"),
+            update_data.get("subject"),
+        )
+        if update_data.get("subject_id") and not subject:
+            raise HTTPException(
+                status_code=404,
+                detail={"code": "SUBJECT_NOT_FOUND", "message": "Subject not found."},
+            )
+        if not subject and "subject" in update_data and not (update_data.get("subject") or "").strip():
+            raise HTTPException(
+                status_code=400,
+                detail={"code": "SUBJECT_REQUIRED", "message": "Provide a curriculum subject or a legacy subject name."},
+            )
+        update_data["subject_id"] = subject.id if subject else None
+        update_data["subject"] = subject.name if subject else (update_data.get("subject") or group.subject)
+
     for field, value in update_data.items():
         setattr(group, field, value)
     await db.flush()
-    await db.refresh(group)
+    group = (
+        await db.execute(
+            select(Group)
+            .options(selectinload(Group.curriculum_subject))
+            .where(Group.id == group_id)
+        )
+    ).scalar_one()
 
-    return SuccessResponse(data=GroupResponse.model_validate(group))
+    payload = GroupResponse.model_validate(group)
+    payload.subject_name = CurriculumService.group_subject_name(group)
+    return SuccessResponse(data=payload)
 
 
 @router.post("/{group_id}/enroll", response_model=MessageResponse)
