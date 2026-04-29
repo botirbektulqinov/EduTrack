@@ -67,6 +67,17 @@ class Settings(BaseSettings):
 
     PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 60
     PASSWORD_RESET_URL_PATH: str = "/reset-password"
+    ALLOW_PASSWORD_RESET_SIGNED_FALLBACK: bool = False
+
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_LOGIN_PER_MINUTE: int = 10
+    RATE_LIMIT_REFRESH_PER_MINUTE: int = 20
+    RATE_LIMIT_FORGOT_PASSWORD_PER_HOUR: int = 5
+    RATE_LIMIT_RESET_PASSWORD_PER_HOUR: int = 10
+    RATE_LIMIT_ASSESSMENT_START_PER_MINUTE: int = 5
+    RATE_LIMIT_ANSWER_SAVE_PER_MINUTE: int = 60
+    RATE_LIMIT_CODE_PREVIEW_PER_MINUTE: int = 5
+    RATE_LIMIT_WS_VIOLATION_PER_MINUTE: int = 30
 
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
 
@@ -85,7 +96,7 @@ class Settings(BaseSettings):
                 return [origin.strip() for origin in value.split(",") if origin.strip()]
         return list(value)
 
-    @field_validator("DEBUG", "ENABLE_API_DOCS", "SMTP_TLS", mode="before")
+    @field_validator("DEBUG", "ENABLE_API_DOCS", "SMTP_TLS", "RATE_LIMIT_ENABLED", "ALLOW_PASSWORD_RESET_SIGNED_FALLBACK", mode="before")
     @classmethod
     def parse_bool_flag(cls, value: Any) -> bool:
         if isinstance(value, bool):

@@ -3,15 +3,16 @@ EduTrack — Student: Assessment Taking API
 Token validation, attempt start, answer save, submit.
 """
 
-from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
+from app.core.config import settings
+from app.core.rate_limit import RateLimit, check_user_rate_limit
 from app.api.deps import get_student_user
 from app.models.user import User
 from app.models.assessment import Assessment
@@ -29,11 +30,28 @@ from app.schemas.attempt import (
 )
 from app.schemas.question import QuestionStudentView, QuestionOptionStudentView
 from app.schemas.common import MessageResponse, SuccessResponse
+from app.services.attempt_service import (
+    ANSWER_MUTABLE_FIELDS,
+    ensure_attempt_in_progress,
+    lock_attempt_start_slot,
+    reject_if_time_expired,
+    sync_attempt_timer,
+    utc_now,
+    validate_questions_belong_to_attempt,
+)
 from app.services.assessment_service import AssessmentService
 from app.services.grading_service import GradingService
 from app.services.link_service import LinkService
 
 router = APIRouter(tags=["Student - Take Assessment"])
+
+
+def _apply_answer_payload(answer: StudentAnswer, answer_data: AnswerSaveRequest) -> None:
+    for field in ANSWER_MUTABLE_FIELDS:
+        value = getattr(answer_data, field, None)
+        if value is not None:
+            setattr(answer, field, value)
+    answer.saved_at = utc_now()
 
 
 @router.get("/take/{token}", response_model=SuccessResponse)
@@ -80,7 +98,18 @@ async def start_attempt(
     student: User = Depends(get_student_user),
 ):
     """Start an assessment attempt — returns shuffled questions."""
-    assessment, reason = await LinkService.validate_token(db, token, student.id)
+    await check_user_rate_limit(
+        student.id,
+        RateLimit("assessment-start", settings.RATE_LIMIT_ASSESSMENT_START_PER_MINUTE, 60),
+    )
+    assessment = await AssessmentService.get_assessment_by_token(db, token)
+    if assessment:
+        await lock_attempt_start_slot(db, assessment_id=assessment.id, student_id=student.id)
+        ok, reason = await AssessmentService.validate_student_access(db, assessment, student.id)
+        if not ok:
+            assessment = None
+    else:
+        reason = "ASSESSMENT_TOKEN_INVALID"
     if not assessment:
         raise HTTPException(status_code=403, detail={"code": reason, "message": "Cannot start assessment."})
 
@@ -195,54 +224,50 @@ async def save_answers(
     student: User = Depends(get_student_user),
 ):
     """Auto-save answers (partial, can be called repeatedly)."""
+    await check_user_rate_limit(
+        student.id,
+        RateLimit("answer-save", settings.RATE_LIMIT_ANSWER_SAVE_PER_MINUTE, 60),
+    )
     result = await db.execute(
         select(AssessmentAttempt).where(
             AssessmentAttempt.id == attempt_id,
             AssessmentAttempt.student_id == student.id,
-        )
+        ).with_for_update()
     )
     attempt = result.scalar_one_or_none()
     if not attempt:
         raise HTTPException(status_code=404, detail={"code": "ATTEMPT_NOT_FOUND", "message": "Attempt not found."})
-    if attempt.status not in ("in_progress",):
-        raise HTTPException(status_code=409, detail={"code": "ATTEMPT_ALREADY_SUBMITTED", "message": "Cannot save to a submitted/terminated attempt."})
+    ensure_attempt_in_progress(attempt)
+    await reject_if_time_expired(db, attempt)
 
-    for answer_data in data.answers:
-        # Upsert: check existing answer for this question
-        existing = await db.execute(
+    incoming_by_question = {answer.question_id: answer for answer in data.answers}
+    question_ids = set(incoming_by_question)
+    await validate_questions_belong_to_attempt(db, attempt, question_ids)
+
+    existing_answers = {}
+    if question_ids:
+        existing_result = await db.execute(
             select(StudentAnswer).where(
                 StudentAnswer.attempt_id == attempt_id,
-                StudentAnswer.question_id == answer_data.question_id,
+                StudentAnswer.question_id.in_(question_ids),
             )
         )
-        answer = existing.scalar_one_or_none()
+        existing_answers = {
+            answer.question_id: answer
+            for answer in existing_result.scalars().all()
+        }
+
+    for question_id, answer_data in incoming_by_question.items():
+        answer = existing_answers.get(question_id)
 
         if answer:
-            # Update existing
-            for field in ("answer_text", "selected_option_ids", "matched_pairs", "ordered_ids",
-                          "categorized", "hotspot_coords", "code_submission", "numeric_answer",
-                          "likert_value", "is_flagged", "time_spent_seconds"):
-                val = getattr(answer_data, field, None)
-                if val is not None:
-                    setattr(answer, field, val)
-            answer.saved_at = datetime.now(timezone.utc)
+            _apply_answer_payload(answer, answer_data)
         else:
-            # Create new
             answer = StudentAnswer(
                 attempt_id=attempt_id,
-                question_id=answer_data.question_id,
-                answer_text=answer_data.answer_text,
-                selected_option_ids=answer_data.selected_option_ids,
-                matched_pairs=answer_data.matched_pairs,
-                ordered_ids=answer_data.ordered_ids,
-                categorized=answer_data.categorized,
-                hotspot_coords=answer_data.hotspot_coords,
-                code_submission=answer_data.code_submission,
-                numeric_answer=answer_data.numeric_answer,
-                likert_value=answer_data.likert_value,
-                is_flagged=answer_data.is_flagged,
-                time_spent_seconds=answer_data.time_spent_seconds,
+                question_id=question_id,
             )
+            _apply_answer_payload(answer, answer_data)
             db.add(answer)
 
     await db.flush()
@@ -260,16 +285,17 @@ async def submit_attempt(
         select(AssessmentAttempt).where(
             AssessmentAttempt.id == attempt_id,
             AssessmentAttempt.student_id == student.id,
-        )
+        ).with_for_update()
     )
     attempt = result.scalar_one_or_none()
     if not attempt:
         raise HTTPException(status_code=404, detail={"code": "ATTEMPT_NOT_FOUND", "message": "Attempt not found."})
-    if attempt.status not in ("in_progress",):
+    if attempt.status != "in_progress":
         raise HTTPException(status_code=409, detail={"code": "ATTEMPT_ALREADY_SUBMITTED", "message": "Already submitted or terminated."})
 
+    await sync_attempt_timer(db, attempt)
     attempt.status = "submitted"
-    attempt.submitted_at = datetime.now(timezone.utc)
+    attempt.submitted_at = utc_now()
     await db.flush()
 
     # Auto-grade
@@ -294,6 +320,10 @@ async def run_code_preview(
     student: User = Depends(get_student_user),
 ):
     """Execute a code answer against visible test cases before final submission."""
+    await check_user_rate_limit(
+        student.id,
+        RateLimit("code-preview", settings.RATE_LIMIT_CODE_PREVIEW_PER_MINUTE, 60),
+    )
     attempt = (
         await db.execute(
             select(AssessmentAttempt)

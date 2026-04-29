@@ -5,12 +5,31 @@ Login, token, password reset.
 
 from uuid import UUID
 from typing import Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, field_validator
+
+
+def _validate_email_syntax(value: str) -> str:
+    normalized = value.strip().lower()
+    if (
+        not normalized
+        or "@" not in normalized
+        or normalized.startswith("@")
+        or normalized.endswith("@")
+        or "." not in normalized.rsplit("@", 1)[1]
+        or any(char.isspace() for char in normalized)
+    ):
+        raise ValueError("Enter a valid email address.")
+    return normalized
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        return _validate_email_syntax(value)
 
 
 class TokenResponse(BaseModel):
@@ -24,7 +43,12 @@ class RefreshTokenRequest(BaseModel):
 
 
 class ForgotPasswordRequest(BaseModel):
-    email: EmailStr
+    email: str
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        return _validate_email_syntax(value)
 
 
 class ResetPasswordRequest(BaseModel):

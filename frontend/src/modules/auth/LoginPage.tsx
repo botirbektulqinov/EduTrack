@@ -13,7 +13,7 @@ import type { User } from '@/types';
 import styles from './LoginPage.module.scss';
 
 const loginSchema = z.object({
-  email: z.string().email('Enter a valid email'),
+  email: z.string().trim().regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Enter a valid email'),
   password: z.string().min(1, 'Password is required'),
 });
 

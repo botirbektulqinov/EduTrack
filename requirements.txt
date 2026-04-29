@@ -48,6 +48,9 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
 python-jose==3.5.0
 python-multipart==0.0.22
+pytest==8.4.1
+pytest-asyncio==1.1.0
+pytest-cov==7.1.0
 PyYAML==6.0.3
 redis==7.2.1
 rich==14.3.3

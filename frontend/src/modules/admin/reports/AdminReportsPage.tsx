@@ -73,7 +73,10 @@ export default function AdminReportsPage() {
           responseType: 'blob',
         });
 
-        const blob = new Blob([res.data], { type: res.headers['content-type'] || 'text/csv' });
+        const contentType = res.headers['content-type'];
+        const blob = new Blob([res.data], {
+          type: typeof contentType === 'string' ? contentType : 'text/csv',
+        });
         const url = URL.createObjectURL(blob);
         setDownloadUrl(url);
 

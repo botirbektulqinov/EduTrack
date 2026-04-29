@@ -96,6 +96,11 @@ async def get_attempt_detail(
     attempt = result.scalar_one_or_none()
     if not attempt:
         raise HTTPException(status_code=404, detail={"code": "ATTEMPT_NOT_FOUND", "message": "Attempt not found."})
+    if teacher.role != "admin" and attempt.assessment and attempt.assessment.teacher_id != teacher.id:
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "AUTH_INSUFFICIENT_PERMISSIONS", "message": "Not your assessment."},
+        )
 
     resp = AttemptDetailResponse.model_validate(attempt)
     resp.answers = [StudentAnswerResponse.model_validate(a) for a in attempt.answers]
@@ -116,12 +121,20 @@ async def manual_grade(
     """Manually grade answers in an attempt (essay, code, etc.)."""
     result = await db.execute(
         select(AssessmentAttempt)
-        .options(selectinload(AssessmentAttempt.answers))
+        .options(
+            selectinload(AssessmentAttempt.answers),
+            selectinload(AssessmentAttempt.assessment),
+        )
         .where(AssessmentAttempt.id == attempt_id)
     )
     attempt = result.scalar_one_or_none()
     if not attempt:
         raise HTTPException(status_code=404, detail={"code": "ATTEMPT_NOT_FOUND", "message": "Attempt not found."})
+    if teacher.role != "admin" and attempt.assessment and attempt.assessment.teacher_id != teacher.id:
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "AUTH_INSUFFICIENT_PERMISSIONS", "message": "Not your assessment."},
+        )
 
     answers_map = {str(a.question_id): a for a in attempt.answers}
 

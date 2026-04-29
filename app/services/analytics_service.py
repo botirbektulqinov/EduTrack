@@ -990,6 +990,8 @@ class AnalyticsService:
         ).scalar_one_or_none()
         if not group:
             return {}
+        if teacher_id and group.teacher_id != teacher_id:
+            return {}
 
         # Get assessments for this group
         q = select(Assessment).where(Assessment.group_id == group_id)
@@ -1014,28 +1016,40 @@ class AnalyticsService:
             select(func.count(GroupEnrollment.id)).where(GroupEnrollment.group_id == group_id)
         )).scalar() or 0
 
-        # All graded attempts for these assessments
-        result = await db.execute(
-            select(AssessmentAttempt.score_percent)
-            .where(
-                AssessmentAttempt.assessment_id.in_(assessment_ids),
-                AssessmentAttempt.status.in_(["submitted", "graded"]),
-                AssessmentAttempt.score_percent.isnot(None),
+        score_rows = (
+            await db.execute(
+                select(
+                    AssessmentAttempt.assessment_id,
+                    AssessmentAttempt.score_percent,
+                ).where(
+                    AssessmentAttempt.assessment_id.in_(assessment_ids),
+                    AssessmentAttempt.status.in_(["submitted", "graded"]),
+                    AssessmentAttempt.score_percent.isnot(None),
+                )
             )
-        )
-        all_scores = [row[0] for row in result]
-        passing = [s for s in all_scores if s >= 50]
+        ).all()
+        scores_by_assessment: dict[UUID, list[float]] = {}
+        for row in score_rows:
+            scores_by_assessment.setdefault(row.assessment_id, []).append(row.score_percent)
+        all_scores = [score for scores in scores_by_assessment.values() for score in scores]
+        passing = [score for score in all_scores if score >= 50]
 
-        # Per-assessment summary
         summaries = []
         for a in assessments:
-            stats = await AnalyticsService.get_assessment_stats(db, a.id)
+            assessment_scores = scores_by_assessment.get(a.id, [])
+            if assessment_scores:
+                passing_scores = [score for score in assessment_scores if score >= 50]
+                mean_score = round(statistics.mean(assessment_scores), 2)
+                pass_rate = round(len(passing_scores) / len(assessment_scores) * 100, 2)
+            else:
+                mean_score = None
+                pass_rate = None
             summaries.append({
                 "assessment_id": str(a.id),
                 "title": a.title,
-                "attempts_count": stats["attempts_count"],
-                "mean_score": stats["mean_score"],
-                "pass_rate": stats["pass_rate"],
+                "attempts_count": len(assessment_scores),
+                "mean_score": mean_score,
+                "pass_rate": pass_rate,
             })
 
         return {

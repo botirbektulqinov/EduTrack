@@ -15,14 +15,19 @@ from app.core.security import decode_token
 from app.models.user import User
 from app.services.user_service import UserService
 
-security_scheme = HTTPBearer()
+security_scheme = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> User:
     """Extract and validate the current user from the JWT token."""
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "AUTH_REQUIRED", "message": "Authentication credentials were not provided."},
+        )
     token = credentials.credentials
     payload = decode_token(token)
 
@@ -68,5 +73,4 @@ def require_role(*roles: str):
 get_admin_user = require_role("admin")
 get_teacher_user = require_role("admin", "teacher")
 get_student_user = require_role("student")
-get_any_authenticated_user = require_role("admin", "teacher", "student")
 get_any_authenticated_user = require_role("admin", "teacher", "student")

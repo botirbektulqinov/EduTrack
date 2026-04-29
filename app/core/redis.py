@@ -30,6 +30,12 @@ class NoOpRedisClient:
     async def delete(self, key: str) -> int:
         return 0
 
+    async def incr(self, key: str) -> int:
+        return 1
+
+    async def expire(self, key: str, ttl: int) -> bool:
+        return True
+
     async def ping(self) -> bool:
         return False
 

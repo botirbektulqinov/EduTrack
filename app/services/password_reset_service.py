@@ -55,6 +55,9 @@ class PasswordResetService:
             await redis_client.setex(cls._redis_key(token), ttl_seconds, str(user.id))
             return token
         except Exception as exc:
+            if not settings.ALLOW_PASSWORD_RESET_SIGNED_FALLBACK:
+                logger.error("Redis reset-token store unavailable and signed fallback is disabled: %s", exc)
+                raise RuntimeError("Password reset token store is unavailable.") from exc
             logger.warning("Redis reset-token store unavailable, using signed fallback token: %s", exc)
             return cls._build_signed_fallback_token(user)
 
@@ -98,9 +101,14 @@ class PasswordResetService:
             if user_id:
                 await redis_client.delete(cls._redis_key(token))
         except Exception as exc:
+            if not settings.ALLOW_PASSWORD_RESET_SIGNED_FALLBACK:
+                logger.warning("Redis reset-token lookup unavailable and signed fallback is disabled: %s", exc)
+                return None
             logger.warning("Redis reset-token lookup unavailable, trying signed fallback token: %s", exc)
 
         if not user_id:
+            if not settings.ALLOW_PASSWORD_RESET_SIGNED_FALLBACK:
+                return None
             try:
                 payload = jwt.decode(
                     token,

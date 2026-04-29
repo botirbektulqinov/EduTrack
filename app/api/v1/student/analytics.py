@@ -5,7 +5,7 @@ EduTrack — Student: Analytics & Dashboard API
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -14,7 +14,6 @@ from app.api.deps import get_student_user
 from app.models.user import User
 from app.models.assessment import Assessment
 from app.models.assessment_attempt import AssessmentAttempt
-from app.models.group import Group
 from app.models.group_enrollment import GroupEnrollment
 from app.schemas.common import SuccessResponse
 from app.services.analytics_service import AnalyticsService
@@ -80,6 +79,38 @@ async def available_assessments(
     )
     result = await db.execute(query)
     assessments = result.scalars().all()
+    assessment_ids = [assessment.id for assessment in assessments]
+
+    attempt_counts = {}
+    in_progress_attempts = set()
+    if assessment_ids:
+        count_rows = await db.execute(
+            select(
+                AssessmentAttempt.assessment_id,
+                func.count(AssessmentAttempt.id).label("attempt_count"),
+            )
+            .where(
+                AssessmentAttempt.assessment_id.in_(assessment_ids),
+                AssessmentAttempt.student_id == student.id,
+            )
+            .group_by(AssessmentAttempt.assessment_id)
+        )
+        attempt_counts = {
+            row.assessment_id: row.attempt_count
+            for row in count_rows
+        }
+
+        in_progress_attempts = set(
+            (
+                await db.execute(
+                    select(AssessmentAttempt.assessment_id).where(
+                        AssessmentAttempt.assessment_id.in_(assessment_ids),
+                        AssessmentAttempt.student_id == student.id,
+                        AssessmentAttempt.status == "in_progress",
+                    )
+                )
+            ).scalars()
+        )
 
     # Filter by availability window and max attempts
     items = []
@@ -90,23 +121,8 @@ async def available_assessments(
         if a.available_until and now > a.available_until:
             continue
 
-        # Count student's attempts
-        attempt_count = (await db.execute(
-            select(func.count(AssessmentAttempt.id)).where(
-                AssessmentAttempt.assessment_id == a.id,
-                AssessmentAttempt.student_id == student.id,
-            )
-        )).scalar() or 0
-
-        # Check if any attempt is in progress
-        in_progress_result = await db.execute(
-            select(AssessmentAttempt).where(
-                AssessmentAttempt.assessment_id == a.id,
-                AssessmentAttempt.student_id == student.id,
-                AssessmentAttempt.status == "in_progress",
-            )
-        )
-        in_progress = in_progress_result.scalar_one_or_none()
+        attempt_count = attempt_counts.get(a.id, 0)
+        in_progress = a.id in in_progress_attempts
 
         items.append({
             "id": str(a.id),
@@ -120,7 +136,7 @@ async def available_assessments(
             "max_attempts": a.max_attempts,
             "attempts_used": attempt_count,
             "can_attempt": attempt_count < a.max_attempts,
-            "in_progress": in_progress is not None,
+            "in_progress": in_progress,
             "access_token": str(a.access_token),
         })
 
