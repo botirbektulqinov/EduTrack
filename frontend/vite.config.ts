@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => {
   return {
     build: {
       chunkSizeWarningLimit: 1280,
+      cssMinify: 'esbuild',
     },
     plugins: [
       react({
