@@ -27,9 +27,10 @@ python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 alembic upgrade head
-python seed.py
 uvicorn app.main:app --reload
 ```
+
+Optional local seed data requires explicit `SEED_*` environment variables for user emails and passwords before running `python seed.py`.
 
 Frontend:
 
@@ -97,15 +98,7 @@ npx playwright install chromium
 
 ## Real Backend E2E
 
-The deterministic E2E seed creates local-only users:
-
-- `admin.e2e@edutrack.test`
-- `teacher.e2e@edutrack.test`
-- `teacher2.e2e@edutrack.test`
-- `student.e2e@edutrack.test`
-- `student2.e2e@edutrack.test`
-
-Default password is `E2EPassword123!`; override it with `E2E_PASSWORD`. The seed refuses to run when `ENVIRONMENT=production`.
+The deterministic E2E seed requires test-only emails and password from environment variables. The seed refuses to run when `ENVIRONMENT=production`.
 
 ```powershell
 $env:DATABASE_URL = "postgresql+asyncpg://postgres:postgres@127.0.0.1:55432/edu_track_test"
@@ -114,6 +107,12 @@ $env:REDIS_URL = "redis://127.0.0.1:56379/0"
 $env:ENVIRONMENT = "development"
 $env:DEBUG = "false"
 $env:RATE_LIMIT_ENABLED = "false"
+$env:E2E_ADMIN_EMAIL = "<test-admin-email>"
+$env:E2E_TEACHER_EMAIL = "<test-teacher-email>"
+$env:E2E_TEACHER2_EMAIL = "<test-teacher-2-email>"
+$env:E2E_STUDENT_EMAIL = "<test-student-email>"
+$env:E2E_STUDENT2_EMAIL = "<test-student-2-email>"
+$env:E2E_PASSWORD = "<test-password>"
 python -m alembic upgrade head
 python scripts/seed_e2e.py
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
@@ -128,8 +127,6 @@ npm run test:e2e:real
 Real E2E currently covers auth, protected-route behavior, teacher dashboard/assessment/results views, student start-answer-submit flow, and analytics pages against persisted backend data.
 
 ## Production Deployment
-
-Full DigitalOcean + name.com instructions are in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 1. Copy `.env.example` to `.env` and fill every required production value.
 2. Set `ENVIRONMENT=production`, `DEBUG=false`, and `ENABLE_API_DOCS=false` unless docs are internal-only.
@@ -146,7 +143,7 @@ docker compose -f docker-compose.prod.yml ps
 ```
 
 The production compose file fails fast if required database, Redis, URL, or secret variables are missing. The API container runs `alembic upgrade head` before starting Uvicorn. Back up PostgreSQL before applying migrations to an existing production database.
-For `edutrack.systems`, Nginx serves the frontend on `https://edutrack.systems`, proxies the API under `/api`, proxies WebSockets under `/ws`, and exposes `/health`, `/health/live`, and `/health/ready`.
+Nginx serves the frontend, proxies the API under `/api`, proxies WebSockets under `/ws`, and exposes `/health`, `/health/live`, and `/health/ready`.
 
 ## CI
 

@@ -1,8 +1,8 @@
 """
 Deterministic EduTrack E2E seed data.
 
-This script is intentionally scoped to stable e2e@edutrack.test users and
-E2E-named records. It refuses to run in production.
+This script is intentionally scoped to E2E-named records. It refuses to run in
+production and requires test credentials through environment variables.
 """
 
 from __future__ import annotations
@@ -36,13 +36,19 @@ from app.models.topic import Topic
 from app.models.user import User
 from app.models.violation import Violation
 
-ADMIN_EMAIL = "admin.e2e@edutrack.test"
-TEACHER_EMAIL = "teacher.e2e@edutrack.test"
-TEACHER2_EMAIL = "teacher2.e2e@edutrack.test"
-STUDENT_EMAIL = "student.e2e@edutrack.test"
-STUDENT2_EMAIL = "student2.e2e@edutrack.test"
+def required_env(name: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        raise SystemExit(f"Set {name} before running the E2E seed.")
+    return value
 
-PASSWORD = os.getenv("E2E_PASSWORD") or "E2EPassword123!"
+
+ADMIN_EMAIL = required_env("E2E_ADMIN_EMAIL")
+TEACHER_EMAIL = required_env("E2E_TEACHER_EMAIL")
+TEACHER2_EMAIL = required_env("E2E_TEACHER2_EMAIL")
+STUDENT_EMAIL = required_env("E2E_STUDENT_EMAIL")
+STUDENT2_EMAIL = required_env("E2E_STUDENT2_EMAIL")
+PASSWORD = required_env("E2E_PASSWORD")
 SUBJECT_NAME = "E2E Assessment Engineering"
 MODULE_NAME = "E2E Fundamentals"
 TOPIC_NAME = "E2E Deterministic Quiz Topic"
@@ -473,12 +479,7 @@ async def seed() -> None:
         await session.commit()
 
     print("E2E seed complete.")
-    print(f"  admin:    {admin.email}")
-    print(f"  teacher:  {teacher.email}")
-    print(f"  teacher2: {teacher2.email}")
-    print(f"  student:  {student.email}")
-    print(f"  student2: {student2.email}")
-    print(f"  password: {PASSWORD}")
+    print("  users:    configured through E2E_* environment variables")
     print(f"  active_assessment_id: {active.id}")
     print(f"  active_assessment_token: {active.access_token}")
     print(f"  other_teacher_assessment_id: {other.id}")

@@ -150,7 +150,6 @@ jobs:
       RATE_LIMIT_ENABLED: "false"
       E2E_BASE_URL: http://127.0.0.1:3000
       E2E_API_URL: http://127.0.0.1:8000/api/v1
-      E2E_PASSWORD: E2EPassword123!
 
     steps:
       - uses: actions/checkout@v4
@@ -167,6 +166,19 @@ jobs:
 
       - name: Install backend dependencies
         run: pip install -r requirements.txt
+
+      - name: Configure E2E credentials
+        run: |
+          python - <<'PY' >> "$GITHUB_ENV"
+          import secrets, uuid
+          suffix = uuid.uuid4().hex
+          print(f"E2E_ADMIN_EMAIL=e2e-{suffix}-a@example.invalid")
+          print(f"E2E_TEACHER_EMAIL=e2e-{suffix}-t@example.invalid")
+          print(f"E2E_TEACHER2_EMAIL=e2e-{suffix}-t2@example.invalid")
+          print(f"E2E_STUDENT_EMAIL=e2e-{suffix}-s@example.invalid")
+          print(f"E2E_STUDENT2_EMAIL=e2e-{suffix}-s2@example.invalid")
+          print(f"E2E_PASSWORD={secrets.token_urlsafe(24)}")
+          PY
 
       - name: Run migrations
         run: alembic upgrade head

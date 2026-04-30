@@ -19,6 +19,12 @@ For real backend E2E, seed and start the backend first, then run:
 cd frontend
 $env:E2E_REAL = "1"
 $env:E2E_API_URL = "http://127.0.0.1:8000/api/v1"
+$env:E2E_ADMIN_EMAIL = "<test-admin-email>"
+$env:E2E_TEACHER_EMAIL = "<test-teacher-email>"
+$env:E2E_TEACHER2_EMAIL = "<test-teacher-2-email>"
+$env:E2E_STUDENT_EMAIL = "<test-student-email>"
+$env:E2E_STUDENT2_EMAIL = "<test-student-2-email>"
+$env:E2E_PASSWORD = "<test-password>"
 npm run test:e2e:real
 ```
 

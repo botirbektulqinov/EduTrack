@@ -5,7 +5,7 @@ const now = '2026-04-29T12:00:00Z';
 const users = {
   teacher: {
     id: 'teacher-1',
-    email: 'teacher@edutrack.test',
+    email: 'teacher@example.invalid',
     full_name: 'Teacher One',
     role: 'teacher',
     is_active: true,
@@ -15,7 +15,7 @@ const users = {
   },
   student: {
     id: 'student-1',
-    email: 'student@edutrack.test',
+    email: 'student@example.invalid',
     full_name: 'Student One',
     role: 'student',
     is_active: true,
@@ -294,8 +294,8 @@ test('teacher login reaches the analytics dashboard empty state', async ({ page 
   await mockTeacherDashboard(page);
 
   await page.goto('/login');
-  await page.getByLabel('Email').fill('teacher@edutrack.test');
-  await page.getByLabel('Password').fill('Teacher123!');
+  await page.getByLabel('Email').fill('teacher@example.invalid');
+  await page.getByLabel('Password').fill('test-login-value');
   await page.getByRole('button', { name: 'Sign In' }).click();
 
   await expect(page).toHaveURL(/\/teacher\/dashboard$/);

@@ -7,6 +7,7 @@ Usage:
 """
 
 import asyncio
+import os
 import sys
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -34,37 +35,44 @@ def hash_password(password: str) -> str:
 
 # ──────────────────────────── Users ────────────────────────────
 
+def required_env(name: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        raise SystemExit(f"Set {name} before running seed.py.")
+    return value
+
+
 SEED_USERS = [
     {
-        "email": "admin@edutrack.edu",
-        "password": "Admin123!",
+        "email": required_env("SEED_ADMIN_EMAIL"),
+        "password": required_env("SEED_ADMIN_PASSWORD"),
         "full_name": "System Administrator",
         "role": "admin",
     },
     {
-        "email": "teacher@edutrack.edu",
-        "password": "Teacher123!",
+        "email": required_env("SEED_TEACHER_EMAIL"),
+        "password": required_env("SEED_TEACHER_PASSWORD"),
         "full_name": "Sarah Johnson",
         "role": "teacher",
         "employee_id": "EMP-001",
     },
     {
-        "email": "student@edutrack.edu",
-        "password": "Student123!",
+        "email": required_env("SEED_STUDENT_EMAIL"),
+        "password": required_env("SEED_STUDENT_PASSWORD"),
         "full_name": "Alex Chen",
         "role": "student",
         "student_id_number": "STU-001",
     },
     {
-        "email": "student2@edutrack.edu",
-        "password": "Student123!",
+        "email": required_env("SEED_STUDENT2_EMAIL"),
+        "password": required_env("SEED_STUDENT2_PASSWORD"),
         "full_name": "Maria Garcia",
         "role": "student",
         "student_id_number": "STU-002",
     },
     {
-        "email": "student3@edutrack.edu",
-        "password": "Student123!",
+        "email": required_env("SEED_STUDENT3_EMAIL"),
+        "password": required_env("SEED_STUDENT3_PASSWORD"),
         "full_name": "James Wilson",
         "role": "student",
         "student_id_number": "STU-003",
@@ -585,10 +593,10 @@ async def seed() -> None:
             session.add(user)
             await session.flush()
             user_map[ud["email"]] = user
-            print(f"  + Created {ud['role']:>8}  {ud['email']}  /  {password}")
+            print(f"  + Created {ud['role']:>8}  {ud['email']}")
 
-        teacher = user_map["teacher@edutrack.edu"]
-        students = [user_map[e] for e in ("student@edutrack.edu", "student2@edutrack.edu", "student3@edutrack.edu")]
+        teacher = user_map[SEED_USERS[1]["email"]]
+        students = [user_map[u["email"]] for u in SEED_USERS[2:]]
 
         # ── 2. Groups ──
         group_defs = [
@@ -639,9 +647,9 @@ async def seed() -> None:
         await session.commit()
 
     print("\nSeed complete.")
-    print("\nCredentials:")
+    print("\nSeed users:")
     for u in SEED_USERS:
-        print(f"  {u['role']:>8}  {u['email']}  /  {u['password']}")
+        print(f"  {u['role']:>8}  {u['email']}")
 
 
 if __name__ == "__main__":
