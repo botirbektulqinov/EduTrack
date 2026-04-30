@@ -145,6 +145,17 @@ docker compose -f docker-compose.prod.yml ps
 The production compose file fails fast if required database, Redis, URL, or secret variables are missing. The API container runs `alembic upgrade head` before starting Uvicorn. Back up PostgreSQL before applying migrations to an existing production database.
 Nginx serves the frontend, proxies the API under `/api`, proxies WebSockets under `/ws`, and exposes `/health`, `/health/live`, and `/health/ready`.
 
+Create the first admin user on the server after migrations:
+
+```bash
+ADMIN_EMAIL="admin@example.com" \
+ADMIN_PASSWORD="replace-with-a-strong-password" \
+ADMIN_FULL_NAME="System Administrator" \
+docker compose -f docker-compose.prod.yml run --rm api python scripts/create_admin.py
+```
+
+The admin email and password are not stored in `.env`; they are written to PostgreSQL as a user record.
+
 ## CI
 
 GitHub Actions runs:
