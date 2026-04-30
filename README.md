@@ -129,6 +129,8 @@ Real E2E currently covers auth, protected-route behavior, teacher dashboard/asse
 
 ## Production Deployment
 
+Full DigitalOcean + name.com instructions are in [DEPLOYMENT.md](DEPLOYMENT.md).
+
 1. Copy `.env.example` to `.env` and fill every required production value.
 2. Set `ENVIRONMENT=production`, `DEBUG=false`, and `ENABLE_API_DOCS=false` unless docs are internal-only.
 3. Generate strong unique values for `SECRET_KEY` and `JWT_SECRET_KEY`.
@@ -144,6 +146,7 @@ docker compose -f docker-compose.prod.yml ps
 ```
 
 The production compose file fails fast if required database, Redis, URL, or secret variables are missing. The API container runs `alembic upgrade head` before starting Uvicorn. Back up PostgreSQL before applying migrations to an existing production database.
+For `edutrack.systems`, Nginx serves the frontend on `https://edutrack.systems`, proxies the API under `/api`, proxies WebSockets under `/ws`, and exposes `/health`, `/health/live`, and `/health/ready`.
 
 ## CI
 

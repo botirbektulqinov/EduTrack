@@ -5,11 +5,11 @@ EduTrack application settings loaded from environment variables and .env.
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Annotated, Any
 from urllib.parse import urlparse
 
 from pydantic import field_validator, model_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, NoDecode
 
 
 class Settings(BaseSettings):
@@ -79,7 +79,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_CODE_PREVIEW_PER_MINUTE: int = 5
     RATE_LIMIT_WS_VIOLATION_PER_MINUTE: int = 30
 
-    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    CORS_ORIGINS: Annotated[list[str], NoDecode] = ["http://localhost:3000", "http://localhost:5173"]
 
     @property
     def is_production(self) -> bool:
@@ -157,6 +157,21 @@ class Settings(BaseSettings):
         frontend_host = urlparse(self.FRONTEND_URL).hostname or ""
         if frontend_host in {"", "localhost", "127.0.0.1"}:
             raise ValueError("FRONTEND_URL must point to the real production frontend host.")
+
+        backend_host = urlparse(self.BACKEND_URL).hostname or ""
+        if backend_host in {"", "localhost", "127.0.0.1"}:
+            raise ValueError("BACKEND_URL must point to the real production backend host.")
+
+        if "*" in self.CORS_ORIGINS:
+            raise ValueError("Wildcard CORS origins are not allowed in production.")
+
+        localhost_origins = [
+            origin
+            for origin in self.CORS_ORIGINS
+            if (urlparse(origin).hostname or "") in {"localhost", "127.0.0.1"}
+        ]
+        if localhost_origins:
+            raise ValueError("CORS_ORIGINS must not include localhost origins in production.")
 
         return self
 

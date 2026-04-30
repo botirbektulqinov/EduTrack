@@ -22,10 +22,14 @@ export function useWebSocket({
     if (!enabled || !attemptId || !serverToken) return;
 
     const configuredBase = import.meta.env.VITE_WS_BASE_URL as string | undefined;
-    const defaultBase =
+    const originBase =
       `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
-    const wsBaseURL = (configuredBase || defaultBase).replace(/\/$/, '');
-    const url = `${wsBaseURL}/ws/attempt/${attemptId}?token=${serverToken}`;
+    const normalizedConfigured = configuredBase?.replace(/\/$/, '');
+    const wsBaseURL = normalizedConfigured?.startsWith('/')
+      ? `${originBase}${normalizedConfigured}`
+      : (normalizedConfigured || originBase);
+    const attemptPath = wsBaseURL.endsWith('/ws') ? '/attempt' : '/ws/attempt';
+    const url = `${wsBaseURL}${attemptPath}/${attemptId}?token=${serverToken}`;
     const ws = new WebSocket(url);
     wsRef.current = ws;
 
