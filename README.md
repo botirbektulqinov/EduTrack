@@ -114,6 +114,7 @@ $env:REDIS_URL = "redis://127.0.0.1:56379/0"
 $env:ENVIRONMENT = "development"
 $env:DEBUG = "false"
 $env:RATE_LIMIT_ENABLED = "false"
+python -m alembic upgrade head
 python scripts/seed_e2e.py
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 

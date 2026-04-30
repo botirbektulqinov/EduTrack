@@ -18,10 +18,10 @@ from urllib.parse import urlparse
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import app.models  # noqa: F401 - register ORM models
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 
 from app.core.config import settings
-from app.core.database import Base, async_session_factory, engine
+from app.core.database import async_session_factory, engine
 from app.core.security import hash_password
 from app.models.assessment import Assessment
 from app.models.assessment_attempt import AssessmentAttempt
@@ -66,6 +66,23 @@ def assert_safe_environment() -> None:
         raise SystemExit(
             f"Refusing to seed E2E data for DATABASE_URL host={host!r} db={db_name!r}."
         )
+
+
+async def assert_migrations_applied() -> None:
+    async with engine.connect() as conn:
+        result = await conn.execute(
+            text(
+                """
+                SELECT
+                  to_regclass('public.alembic_version') AS alembic_version,
+                  to_regclass('public.users') AS users_table
+                """
+            )
+        )
+        row = result.one()
+
+    if row.alembic_version is None or row.users_table is None:
+        raise SystemExit("Run `alembic upgrade head` before `python scripts/seed_e2e.py`.")
 
 
 async def get_or_create_user(session, *, email: str, full_name: str, role: str, **extra) -> User:
@@ -388,8 +405,7 @@ async def create_other_teacher_assessment(
 
 async def seed() -> None:
     assert_safe_environment()
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    await assert_migrations_applied()
 
     async with async_session_factory() as session:
         admin = await get_or_create_user(

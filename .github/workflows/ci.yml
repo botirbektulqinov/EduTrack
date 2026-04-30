@@ -168,11 +168,11 @@ jobs:
       - name: Install backend dependencies
         run: pip install -r requirements.txt
 
-      - name: Seed E2E schema and data
-        run: python scripts/seed_e2e.py
-
       - name: Run migrations
         run: alembic upgrade head
+
+      - name: Seed E2E data
+        run: python scripts/seed_e2e.py
 
       - name: Start backend
         run: |
