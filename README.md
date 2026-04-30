@@ -143,7 +143,7 @@ docker compose -f docker-compose.prod.yml ps
 ```
 
 The production compose file fails fast if required database, Redis, URL, or secret variables are missing. The API container runs `alembic upgrade head` before starting Uvicorn. Back up PostgreSQL before applying migrations to an existing production database.
-Nginx serves the frontend, proxies the API under `/api`, proxies WebSockets under `/ws`, and exposes `/health`, `/health/live`, and `/health/ready`.
+The frontend container binds to `127.0.0.1:8080` by default so an existing host-level Nginx/Caddy can own public ports `80` and `443`. Proxy your domain to `http://127.0.0.1:8080`; the container serves the frontend, proxies `/api`, proxies `/ws`, and exposes `/health`, `/health/live`, and `/health/ready`.
 
 Create the first admin user on the server after migrations:
 
