@@ -51,7 +51,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -86,6 +86,8 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:?Set FRONTEND_URL}
       BACKEND_URL: ${BACKEND_URL:?Set BACKEND_URL}
     command: celery -A app.workers.celery_app worker -l info
+    healthcheck:
+      disable: true
     depends_on:
       postgres:
         condition: service_healthy
@@ -110,6 +112,8 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:?Set FRONTEND_URL}
       BACKEND_URL: ${BACKEND_URL:?Set BACKEND_URL}
     command: celery -A app.workers.celery_app beat -l info
+    healthcheck:
+      disable: true
     depends_on:
       postgres:
         condition: service_healthy
